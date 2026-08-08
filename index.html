@@ -1,4 +1,4 @@
-<<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -15,6 +15,7 @@ html,body{
     height:100%;
     overflow:hidden;
     background:#111827;
+    font-family:Arial,sans-serif;
     user-select:none;
     -webkit-user-select:none;
     -webkit-touch-callout:none;
@@ -48,6 +49,7 @@ let H=innerHeight;
 let dpr=1;
 
 function resize(){
+
     W=innerWidth;
     H=innerHeight;
 
@@ -61,6 +63,7 @@ function resize(){
 
 addEventListener("resize",resize);
 addEventListener("orientationchange",resize);
+
 resize();
 
 
@@ -80,7 +83,7 @@ let keyAttack=false;
 
 const fingers=new Map();
 
-function buttons(){
+function getButtons(){
 
     const s=Math.min(
         100,
@@ -88,7 +91,7 @@ function buttons(){
     );
 
     const gap=14;
-    const bottom=22;
+    const bottom=20;
 
     return{
         left:{
@@ -121,7 +124,7 @@ function buttons(){
     };
 }
 
-function point(e){
+function getPoint(e){
 
     const r=canvas.getBoundingClientRect();
 
@@ -141,14 +144,14 @@ function inside(p,b){
     );
 }
 
-function updateTouches(){
+function updateTouchControls(){
 
     touchLeft=false;
     touchRight=false;
     touchJump=false;
     touchAttack=false;
 
-    const b=buttons();
+    const b=getButtons();
 
     for(const p of fingers.values()){
 
@@ -167,43 +170,68 @@ function updateTouches(){
 }
 
 canvas.addEventListener("pointerdown",e=>{
+
     e.preventDefault();
 
-    fingers.set(
-        e.pointerId,
-        point(e)
-    );
+    const p=getPoint(e);
+
+    // SHOP INTERACTION
+    if(shopOpen){
+
+        handleShopTouch(p);
+        return;
+    }
+
+    // SHOP OPEN BUTTON
+    if(
+        nearShop &&
+        !shopOpen &&
+        inside(p,getShopOpenButton())
+    ){
+
+        shopOpen=true;
+        return;
+    }
+
+    fingers.set(e.pointerId,p);
 
     try{
         canvas.setPointerCapture(e.pointerId);
     }catch(_){}
 
-    updateTouches();
+    updateTouchControls();
+
 },{passive:false});
 
 canvas.addEventListener("pointermove",e=>{
+
     e.preventDefault();
 
     if(fingers.has(e.pointerId)){
+
         fingers.set(
             e.pointerId,
-            point(e)
+            getPoint(e)
         );
 
-        updateTouches();
+        updateTouchControls();
     }
+
 },{passive:false});
 
 function pointerEnd(e){
+
     fingers.delete(e.pointerId);
-    updateTouches();
+    updateTouchControls();
 }
 
 canvas.addEventListener("pointerup",pointerEnd);
 canvas.addEventListener("pointercancel",pointerEnd);
 
 
-// Keyboard
+// =====================================================
+// KEYBOARD
+// =====================================================
 
 document.addEventListener("keydown",e=>{
 
@@ -216,11 +244,13 @@ document.addEventListener("keydown",e=>{
         keyRight=true;
 
     if(k==="arrowup"||k==="w"||k===" "){
+
         keyJump=true;
         e.preventDefault();
     }
 
     if(k==="j"||k==="f"||k==="z"){
+
         keyAttack=true;
         e.preventDefault();
     }
@@ -266,37 +296,36 @@ for(let n=0;n<20;n++){
 
     let x=0;
 
-    /*
-       IMPORTANT:
-       Platforms are deliberately kept within
-       jumpable distances.
-
-       Horizontal gap: 55-100 px
-       Vertical difference: never more than 75 px
-    */
-
     for(let i=0;i<14;i++){
 
         let y;
 
         if(i===0){
+
             y=500;
+
         }else{
 
             const previous=
                 platforms[i-1][1];
 
             const change=
-                ((i*31+n*17)%151)-75;
+                ((i*31+n*17)%121)-60;
 
-            y=previous+change;
+            y=
+                previous+
+                change;
 
-            y=Math.max(330,Math.min(520,y));
+            y=
+                Math.max(
+                    350,
+                    Math.min(520,y)
+                );
         }
 
         const width=
-            300+
-            ((i*47+n*13)%100);
+            310+
+            ((i*47+n*13)%90);
 
         platforms.push([
             x,
@@ -307,16 +336,14 @@ for(let n=0;n<20;n++){
 
         x+=
             width+
-            60+
-            ((i*17+n*11)%41);
+            55+
+            ((i*17+n*11)%35);
     }
-
-    // Final safe platform
 
     platforms.push([
         x,
         450,
-        700,
+        800,
         50
     ]);
 
@@ -344,6 +371,8 @@ for(let n=0;n<20;n++){
 
         let type=1;
 
+        // Stronger monsters appear later.
+
         if(n>=5 && m>=2)
             type=2;
 
@@ -360,13 +389,29 @@ for(let n=0;n<20;n++){
     }
 
     levels.push({
-        name:themes[Math.floor(n/5)][2],
-        sky1:themes[Math.floor(n/5)][0],
-        sky2:themes[Math.floor(n/5)][1],
+
+        name:
+            themes[
+                Math.floor(n/5)
+            ][2],
+
+        sky1:
+            themes[
+                Math.floor(n/5)
+            ][0],
+
+        sky2:
+            themes[
+                Math.floor(n/5)
+            ][1],
+
         platforms:platforms,
         coins:coins,
         monsters:monsters,
-        boss:n===9||n===19
+
+        boss:
+            n===9||
+            n===19
     });
 }
 
@@ -376,6 +421,7 @@ for(let n=0;n<20;n++){
 // =====================================================
 
 let level=0;
+
 let score=0;
 let totalCoins=0;
 let monstersKilled=0;
@@ -393,18 +439,129 @@ let messageTimer=0;
 let player;
 let coins=[];
 let enemies=[];
-let portal;
+let portal=null;
+
+let shop=null;
+let shopOpen=false;
+let nearShop=false;
+
+let swordDamage=3;
+let swordRarity="COMMON";
 
 let lastTime=performance.now();
 
 
 // =====================================================
-// MONSTER TYPES
+// SHOP ITEMS
+// =====================================================
+
+const shopPool=[
+
+    {
+        id:"life",
+        name:"❤️ +1 LIFE",
+        price:10,
+        description:"Gain another life.",
+        repeat:true
+    },
+
+    {
+        id:"heal",
+        name:"💚 HEAL 10 HP",
+        price:5,
+        description:"Restore 10 lost HP.",
+        repeat:true
+    },
+
+    {
+        id:"jump",
+        name:"🦘 JUMP BOOST",
+        price:15,
+        description:"Jump higher.",
+        repeat:false
+    },
+
+    {
+        id:"speed",
+        name:"💨 SPEED BOOST",
+        price:15,
+        description:"Run faster.",
+        repeat:false
+    },
+
+    {
+        id:"strength",
+        name:"💪 STRENGTH",
+        price:20,
+        description:"Increase sword damage.",
+        repeat:false
+    },
+
+    {
+        id:"maxhp",
+        name:"❤️ MAX HP +10",
+        price:25,
+        description:"Increase maximum HP.",
+        repeat:false
+    }
+];
+
+const weaponPool=[
+
+    {
+        id:"uncommon",
+        name:"🗡 UNCOMMON SWORD",
+        price:25,
+        damage:5,
+        rarity:"UNCOMMON"
+    },
+
+    {
+        id:"rare",
+        name:"🗡 RARE SWORD",
+        price:45,
+        damage:7,
+        rarity:"RARE"
+    },
+
+    {
+        id:"epic",
+        name:"🗡 EPIC SWORD",
+        price:70,
+        damage:10,
+        rarity:"EPIC"
+    },
+
+    {
+        id:"legendary",
+        name:"🗡 LEGENDARY SWORD",
+        price:110,
+        damage:12,
+        rarity:"LEGENDARY"
+    },
+
+    {
+        id:"mythic",
+        name:"🗡 MYTHIC SWORD",
+        price:160,
+        damage:15,
+        rarity:"MYTHIC"
+    }
+];
+
+let shopItems=[];
+
+let purchasedPermanent=new Set();
+
+
+// =====================================================
+// MONSTER STATS
 // =====================================================
 
 function monsterStats(type){
 
     if(type===1){
+
         return{
             hp:5,
             damage:5,
@@ -417,6 +574,7 @@ function monsterStats(type){
     }
 
     if(type===2){
+
         return{
             hp:10,
             damage:7,
@@ -429,6 +587,7 @@ function monsterStats(type){
     }
 
     if(type===3){
+
         return{
             hp:15,
             damage:10,
@@ -441,6 +600,7 @@ function monsterStats(type){
     }
 
     return{
+
         hp:20,
         damage:15,
         rate:2,
@@ -460,13 +620,12 @@ function loadLevel(n){
 
     level=n;
 
+    shopOpen=false;
+
     const L=levels[level];
 
-    const maxHP=
-        20+
-        level*10;
-
     player={
+
         x:80,
         y:250,
 
@@ -476,35 +635,59 @@ function loadLevel(n){
         vx:0,
         vy:0,
 
-        speed:7,
-        jumpPower:-13,
+        speed:
+            7,
+
+        jumpPower:
+            -13,
 
         ground:false,
 
-        maxHP:maxHP,
-        hp:maxHP,
+        maxHP:
+            20+
+            level*10,
+
+        hp:
+            20+
+            level*10,
 
         attackCooldown:0,
         attacking:false,
         attackTimer:0
     };
 
+
     coins=L.coins.map(c=>({
+
         x:c[0],
         y:c[1],
         collected:false
     }));
 
+
     enemies=[];
+
 
     for(const data of L.monsters){
 
         const s=
-            monsterStats(data.type);
+            monsterStats(
+                data.type
+            );
+
+        const p=
+            L.platforms[
+                Math.min(
+                    data.type+1,
+                    L.platforms.length-2
+                )
+            ];
 
         enemies.push({
+
             x:data.x,
-            y:0,
+
+            y:p[1]-s.height,
 
             width:s.width,
             height:s.height,
@@ -523,7 +706,8 @@ function loadLevel(n){
             vx:0,
             vy:0,
 
-            ground:false,
+            ground:true,
+
             active:false,
 
             attackTimer:0,
@@ -533,7 +717,10 @@ function loadLevel(n){
         });
     }
 
-    // Boss
+
+    // =================================================
+    // BOSS
+    // =================================================
 
     if(L.boss){
 
@@ -546,34 +733,49 @@ function loadLevel(n){
             level===19;
 
         const bw=
-            secondBoss?204:170;
+            secondBoss
+            ?204
+            :170;
 
         const bh=
-            secondBoss?288:240;
+            secondBoss
+            ?288
+            :240;
 
         enemies.push({
 
             x:
                 final[0]+
-                final[2]-bw-80,
+                final[2]-
+                bw-
+                70,
 
             y:
-                final[1]-bh,
+                final[1]-
+                bh,
 
             width:bw,
             height:bh,
 
             hp:
-                secondBoss?50:35,
+                secondBoss
+                ?50
+                :35,
 
             maxHP:
-                secondBoss?50:35,
+                secondBoss
+                ?50
+                :35,
 
             damage:
-                secondBoss?30:20,
+                secondBoss
+                ?30
+                :20,
 
             rate:
-                secondBoss?3.5:3,
+                secondBoss
+                ?3.5
+                :3,
 
             boss:true,
 
@@ -582,7 +784,6 @@ function loadLevel(n){
             attackTimer:0,
 
             warning:false,
-
             warningTimer:0,
 
             vx:0,
@@ -594,26 +795,64 @@ function loadLevel(n){
         });
     }
 
+
+    // =================================================
+    // PORTAL
+    // =================================================
+
     const final=
         L.platforms[
             L.platforms.length-1
         ];
 
-    // PORTAL IS ALWAYS AT THE END
-
     portal={
+
         x:
             final[0]+
-            final[2]-90,
+            final[2]-
+            90,
 
         y:
-            final[1]-75,
+            final[1]-
+            75,
 
         width:50,
         height:75
     };
 
+
+    // =================================================
+    // SHOP
+    // =================================================
+
+    if(
+        (level+1)%5===0
+    ){
+
+        shop={
+
+            x:
+                final[0]+
+                190,
+
+            y:
+                final[1]-70,
+
+            width:70,
+            height:70
+        };
+
+        createShop();
+
+    }else{
+
+        shop=null;
+        shopItems=[];
+    }
+
+
     camera=0;
+
 
     message=
         L.boss
@@ -627,12 +866,317 @@ function loadLevel(n){
 
 
 // =====================================================
+// SHOP CREATION
+// =====================================================
+
+function createShop(){
+
+    shopItems=[];
+
+    const available=[
+        ...shopPool,
+        ...weaponPool
+    ];
+
+    // Don't offer already-owned permanent upgrades.
+
+    const filtered=
+        available.filter(item=>{
+
+            if(
+                !item.repeat &&
+                purchasedPermanent.has(item.id)
+            )
+                return false;
+
+            return true;
+        });
+
+
+    while(
+        shopItems.length<3 &&
+        filtered.length>0
+    ){
+
+        const index=
+            Math.floor(
+                Math.random()*
+                filtered.length
+            );
+
+        shopItems.push(
+            filtered[index]
+        );
+
+        filtered.splice(
+            index,
+            1
+        );
+    }
+}
+
+
+// =====================================================
+// SHOP BUTTON
+// =====================================================
+
+function getShopOpenButton(){
+
+    return{
+
+        x:W/2-115,
+        y:H-155,
+        w:230,
+        h:60
+    };
+}
+
+
+// =====================================================
+// SHOP TOUCH
+// =====================================================
+
+function handleShopTouch(p){
+
+    if(!shopOpen)
+        return;
+
+
+    const cardW=
+        Math.min(
+            200,
+            (W-50)/3
+        );
+
+    const gap=10;
+
+    const total=
+        cardW*3+
+        gap*2;
+
+    const start=
+        W/2-total/2;
+
+
+    for(
+        let i=0;
+        i<shopItems.length;
+        i++
+    ){
+
+        const x=
+            start+
+            i*(cardW+gap);
+
+        const y=145;
+
+        const buyBox={
+
+            x:x+10,
+            y:y+155,
+            w:cardW-20,
+            h:55
+        };
+
+        if(
+            inside(p,buyBox)
+        ){
+
+            buyShopItem(i);
+            return;
+        }
+    }
+
+
+    // CLOSE
+
+    const close={
+
+        x:W/2-85,
+        y:H-90,
+        w:170,
+        h:55
+    };
+
+    if(inside(p,close)){
+
+        shopOpen=false;
+        return;
+    }
+}
+
+
+// =====================================================
+// BUY SHOP ITEM
+// =====================================================
+
+function buyShopItem(index){
+
+    const item=
+        shopItems[index];
+
+    if(!item)
+        return;
+
+
+    if(score<item.price){
+
+        message=
+            "❌ NOT ENOUGH COINS!";
+
+        messageTimer=55;
+
+        return;
+    }
+
+
+    // =================================================
+    // BUY
+    // =================================================
+
+    score-=item.price;
+
+
+    if(item.id==="life"){
+
+        lives++;
+
+        message=
+            "❤️ +1 LIFE!";
+    }
+
+
+    else if(item.id==="heal"){
+
+        if(
+            player.hp>=
+            player.maxHP
+        ){
+
+            score+=item.price;
+
+            message=
+                "❤️ YOUR HP IS ALREADY FULL!";
+
+            messageTimer=55;
+
+            return;
+        }
+
+        player.hp=
+            Math.min(
+                player.maxHP,
+                player.hp+10
+            );
+
+        message=
+            "💚 +10 HP!";
+    }
+
+
+    else if(item.id==="jump"){
+
+        player.jumpPower-=1.5;
+
+        purchasedPermanent.add(
+            item.id
+        );
+
+        message=
+            "🦘 JUMP BOOST!";
+    }
+
+
+    else if(item.id==="speed"){
+
+        player.speed+=1;
+
+        purchasedPermanent.add(
+            item.id
+        );
+
+        message=
+            "💨 SPEED BOOST!";
+    }
+
+
+    else if(item.id==="strength"){
+
+        swordDamage+=2;
+
+        purchasedPermanent.add(
+            item.id
+        );
+
+        message=
+            "💪 STRENGTH UP!";
+    }
+
+
+    else if(item.id==="maxhp"){
+
+        player.maxHP+=10;
+
+        player.hp+=10;
+
+        purchasedPermanent.add(
+            item.id
+        );
+
+        message=
+            "❤️ MAX HP +10!";
+    }
+
+
+    // =================================================
+    // WEAPONS
+    // =================================================
+
+    else if(item.damage){
+
+        if(
+            item.damage>
+            swordDamage
+        ){
+
+            swordDamage=
+                item.damage;
+
+            swordRarity=
+                item.rarity;
+
+            message=
+                "⚔ "+
+                item.rarity+
+                " SWORD!";
+        }
+
+        purchasedPermanent.add(
+            item.id
+        );
+    }
+
+
+    messageTimer=70;
+
+
+    // Remove bought item from current shop.
+
+    shopItems.splice(
+        index,
+        1
+    );
+}
+
+
+// =====================================================
 // COLLISION
 // =====================================================
 
 function collision(a,b){
 
     return(
+
         a.x<b.x+b.width &&
         a.x+a.width>b.x &&
         a.y<b.y+b.height &&
@@ -642,7 +1186,7 @@ function collision(a,b){
 
 
 // =====================================================
-// PHYSICS
+// ENTITY PHYSICS
 // =====================================================
 
 function moveEntity(e,platforms){
@@ -659,17 +1203,21 @@ function moveEntity(e,platforms){
 
     e.ground=false;
 
+
     for(const p of platforms){
 
         const plat={
+
             x:p[0],
             y:p[1],
             width:p[2],
             height:p[3]
         };
 
+
         if(!collision(e,plat))
             continue;
+
 
         const oldBottom=
             oldY+e.height;
@@ -677,11 +1225,13 @@ function moveEntity(e,platforms){
         const newBottom=
             e.y+e.height;
 
-        // Landing
+
+        // LAND
 
         if(
             e.vy>=0 &&
-            oldBottom<=plat.y+12 &&
+            oldBottom<=
+            plat.y+12 &&
             newBottom>=plat.y
         ){
 
@@ -694,7 +1244,8 @@ function moveEntity(e,platforms){
             e.ground=true;
         }
 
-        // Ceiling
+
+        // CEILING
 
         else if(e.vy<0){
 
@@ -709,7 +1260,7 @@ function moveEntity(e,platforms){
 
 
 // =====================================================
-// FIND PLATFORM
+// PLATFORM BELOW
 // =====================================================
 
 function platformBelow(e,platforms){
@@ -745,7 +1296,7 @@ function platformBelow(e,platforms){
 
 
 // =====================================================
-// DAMAGE
+// PLAYER DAMAGE
 // =====================================================
 
 function damagePlayer(amount){
@@ -753,11 +1304,14 @@ function damagePlayer(amount){
     if(gameOver||gameWon)
         return;
 
+
     player.hp-=amount;
+
 
     if(player.hp<=0){
 
         lives--;
+
 
         if(lives<=0){
 
@@ -765,7 +1319,8 @@ function damagePlayer(amount){
             return;
         }
 
-        // Respawn at beginning of CURRENT LEVEL
+
+        // Respawn at beginning of CURRENT LEVEL.
 
         player.x=80;
         player.y=250;
@@ -773,21 +1328,23 @@ function damagePlayer(amount){
         player.vx=0;
         player.vy=0;
 
-        // Respawn with full HP
+        // Full HP after respawn.
 
         player.hp=
             player.maxHP;
 
         camera=0;
 
-        message="RESPAWN!";
+        message=
+            "💥 RESPAWN!";
+
         messageTimer=80;
     }
 }
 
 
 // =====================================================
-// SWORD ATTACK
+// ATTACK
 // =====================================================
 
 function attack(){
@@ -795,57 +1352,66 @@ function attack(){
     if(gameOver||gameWon)
         return;
 
-    // ================================================
-    // ATTACK SPEED
-    // 0.5 SECOND COOLDOWN
-    // ================================================
+
+    // 0.5 SECOND ATTACK COOLDOWN
 
     if(player.attackCooldown>0)
         return;
 
+
     player.attackCooldown=.5;
 
     player.attacking=true;
-    player.attackTimer=.2;
+    player.attackTimer=.22;
 
-    const damage=3;
 
     const facing=
-        player.vx<0?-1:1;
+        player.vx<0
+        ?-1
+        :1;
+
 
     for(const enemy of enemies){
 
         if(enemy.dead)
             continue;
 
-        // NEVER allow stomping to hurt bosses.
-        // Sword attacks are the only way.
+
+        // Boss cannot be stomped.
+        // Sword is required.
 
         const dx=
             enemy.x-player.x;
 
         const dy=
-            Math.abs(enemy.y-player.y);
+            Math.abs(
+                enemy.y-player.y
+            );
 
         const inFront=
             dx*facing>=-25 &&
-            dx*facing<=105;
+            dx*facing<=115;
+
 
         if(
             inFront &&
-            dy<125
+            dy<130
         ){
 
-            enemy.hp-=damage;
+            enemy.hp-=swordDamage;
+
 
             if(enemy.hp<=0){
 
                 enemy.dead=true;
 
                 monstersKilled++;
+
                 score++;
 
-                message="+1 MONSTER!";
+                message=
+                    "+1 MONSTER!";
+
                 messageTimer=25;
             }
         }
@@ -862,6 +1428,7 @@ function updateEnemy(e,L,dt){
     if(e.dead)
         return;
 
+
     // =================================================
     // BOSS
     // =================================================
@@ -871,34 +1438,44 @@ function updateEnemy(e,L,dt){
         if(
             Math.abs(
                 player.x-e.x
-            )<700
-        )
+            )<750
+        ){
+
             e.active=true;
+        }
+
 
         if(!e.active)
             return;
 
+
         e.attackTimer+=dt;
 
+
         if(
-            e.attackTimer>=e.rate
+            e.attackTimer>=e.rate &&
+            !e.warning
         ){
 
             e.attackTimer=0;
 
             e.warning=true;
+
             e.warningTimer=.5;
         }
+
 
         if(e.warning){
 
             e.warningTimer-=dt;
+
 
             if(
                 e.warningTimer<=0
             ){
 
                 e.warning=false;
+
 
                 const center=
                     e.x+
@@ -908,13 +1485,15 @@ function updateEnemy(e,L,dt){
                     player.x+
                     player.width/2;
 
-                // Boss only hits directly in front.
+
+                // Boss attack is only directly
+                // in front of the boss.
 
                 if(
                     Math.abs(
                         pc-center
                     )<
-                    e.width/2+110
+                    e.width/2+120
                 ){
 
                     damagePlayer(
@@ -923,6 +1502,7 @@ function updateEnemy(e,L,dt){
                 }
             }
         }
+
 
         return;
     }
@@ -942,20 +1522,22 @@ function updateEnemy(e,L,dt){
     if(
         !e.active &&
         distance<550
-    )
+    ){
+
         e.active=true;
+    }
 
 
     if(!e.active)
         return;
 
 
-    // IMPORTANT:
-    // Monsters that fall into the void are removed
-    // and cannot attack from off-screen.
+    // If the monster falls into the void,
+    // permanently remove it.
 
     if(
-        e.y>H+700
+        e.y>
+        H+700
     ){
 
         e.dead=true;
@@ -963,7 +1545,7 @@ function updateEnemy(e,L,dt){
     }
 
 
-    if(distance>850){
+    if(distance>900){
 
         e.active=false;
         e.vx=0;
@@ -973,7 +1555,10 @@ function updateEnemy(e,L,dt){
 
 
     const dir=
-        dx>0?1:-1;
+        dx>0
+        ?1
+        :-1;
+
 
     e.vx=
         dir*e.speed;
@@ -992,7 +1577,8 @@ function updateEnemy(e,L,dt){
         );
 
 
-    // Jump UP to player platform
+    // Jump UP when the player is on
+    // a higher platform.
 
     if(
         e.ground &&
@@ -1012,7 +1598,7 @@ function updateEnemy(e,L,dt){
     );
 
 
-    // Attack only when actually close
+    // Only attack if physically close.
 
     if(
         collision(
@@ -1022,6 +1608,7 @@ function updateEnemy(e,L,dt){
     ){
 
         e.attackTimer+=dt;
+
 
         if(
             e.attackTimer>=e.rate
@@ -1055,16 +1642,52 @@ function update(){
 
     lastTime=now;
 
-    dt=Math.min(dt,.05);
+    dt=
+        Math.min(dt,.05);
+
 
     if(gameOver||gameWon)
         return;
+
+
+    // Don't control player while shop is open.
+
+    if(shopOpen)
+        return;
+
 
     const L=
         levels[level];
 
 
-    // INPUT
+    // =================================================
+    // SHOP DISTANCE
+    // =================================================
+
+    nearShop=false;
+
+
+    if(shop){
+
+        const dx=
+            Math.abs(
+                player.x-shop.x
+            );
+
+        const dy=
+            Math.abs(
+                player.y-shop.y
+            );
+
+        nearShop=
+            dx<170 &&
+            dy<150;
+    }
+
+
+    // =================================================
+    // CONTROLS
+    // =================================================
 
     const left=
         keyLeft||
@@ -1083,7 +1706,9 @@ function update(){
         touchAttack;
 
 
+    // =================================================
     // MOVEMENT
+    // =================================================
 
     if(left)
         player.vx-=.8;
@@ -1091,8 +1716,10 @@ function update(){
     if(right)
         player.vx+=.8;
 
+
     if(!left&&!right)
         player.vx*=.82;
+
 
     player.vx=
         Math.max(
@@ -1104,7 +1731,9 @@ function update(){
         );
 
 
+    // =================================================
     // JUMP
+    // =================================================
 
     if(
         jump &&
@@ -1118,26 +1747,43 @@ function update(){
     }
 
 
+    // =================================================
     // ATTACK
+    // =================================================
 
     if(attacking)
         attack();
 
 
-    if(player.attackCooldown>0)
+    if(
+        player.attackCooldown>0
+    ){
+
         player.attackCooldown-=dt;
+
+        if(
+            player.attackCooldown<0
+        )
+            player.attackCooldown=0;
+    }
 
 
     if(player.attacking){
 
         player.attackTimer-=dt;
 
-        if(player.attackTimer<=0)
+        if(
+            player.attackTimer<=0
+        ){
+
             player.attacking=false;
+        }
     }
 
 
+    // =================================================
     // PLAYER PHYSICS
+    // =================================================
 
     moveEntity(
         player,
@@ -1152,21 +1798,28 @@ function update(){
         );
 
 
+    // =================================================
     // COINS
+    // =================================================
 
     for(const c of coins){
 
         if(c.collected)
             continue;
 
+
         const d=
             Math.hypot(
+
                 player.x+
-                player.width/2-c.x,
+                player.width/2-
+                c.x,
 
                 player.y+
-                player.height/2-c.y
+                player.height/2-
+                c.y
             );
+
 
         if(d<35){
 
@@ -1175,16 +1828,26 @@ function update(){
             score++;
             totalCoins++;
 
-            message="+1 COIN!";
+            message=
+                "+1 COIN!";
+
             messageTimer=30;
         }
     }
 
 
+    // =================================================
     // ENEMIES
+    // =================================================
 
-    for(const e of enemies)
-        updateEnemy(e,L,dt);
+    for(const e of enemies){
+
+        updateEnemy(
+            e,
+            L,
+            dt
+        );
+    }
 
 
     enemies=
@@ -1193,7 +1856,9 @@ function update(){
         );
 
 
+    // =================================================
     // PORTAL
+    // =================================================
 
     const bossAlive=
         enemies.some(
@@ -1202,13 +1867,18 @@ function update(){
 
 
     if(
-        collision(player,portal) &&
+        collision(
+            player,
+            portal
+        ) &&
         !bossAlive
     ){
 
         if(level<19){
 
-            loadLevel(level+1);
+            loadLevel(
+                level+1
+            );
 
         }else{
 
@@ -1217,7 +1887,9 @@ function update(){
     }
 
 
+    // =================================================
     // FALL
+    // =================================================
 
     if(
         player.y>
@@ -1230,7 +1902,9 @@ function update(){
     }
 
 
+    // =================================================
     // CAMERA
+    // =================================================
 
     const final=
         L.platforms[
@@ -1240,7 +1914,7 @@ function update(){
     const worldWidth=
         final[0]+
         final[2]+
-        120;
+        150;
 
 
     camera+=
@@ -1279,7 +1953,9 @@ function draw(){
         levels[level];
 
 
+    // =================================================
     // SKY
+    // =================================================
 
     const gradient=
         ctx.createLinearGradient(
@@ -1296,11 +1972,13 @@ function draw(){
         L.sky2
     );
 
-    ctx.fillStyle=
-        gradient;
+    ctx.fillStyle=gradient;
 
     ctx.fillRect(
-        0,0,W,H
+        0,
+        0,
+        W,
+        H
     );
 
 
@@ -1312,7 +1990,9 @@ function draw(){
     );
 
 
+    // =================================================
     // BACKGROUND
+    // =================================================
 
     ctx.fillStyle=
         "rgba(255,255,255,.13)";
@@ -1344,11 +2024,14 @@ function draw(){
     }
 
 
+    // =================================================
     // PLATFORMS
+    // =================================================
 
     for(const p of L.platforms){
 
-        ctx.fillStyle="#263244";
+        ctx.fillStyle=
+            "#263244";
 
         ctx.fillRect(
             p[0],
@@ -1356,6 +2039,7 @@ function draw(){
             p[2],
             p[3]
         );
+
 
         ctx.fillStyle=
             level>=15
@@ -1374,14 +2058,60 @@ function draw(){
     }
 
 
+    // =================================================
+    // SHOP BUILDING
+    // =================================================
+
+    if(shop){
+
+        ctx.fillStyle="#78350f";
+
+        ctx.fillRect(
+            shop.x,
+            shop.y,
+            shop.width,
+            shop.height
+        );
+
+        ctx.fillStyle="#fbbf24";
+
+        ctx.fillRect(
+            shop.x-8,
+            shop.y-18,
+            shop.width+16,
+            22
+        );
+
+        ctx.fillStyle="white";
+
+        ctx.font=
+            "bold 18px Arial";
+
+        ctx.textAlign="center";
+
+        ctx.fillText(
+            "SHOP",
+            shop.x+
+            shop.width/2,
+            shop.y+45
+        );
+
+        ctx.textAlign="left";
+    }
+
+
+    // =================================================
     // COINS
+    // =================================================
 
     for(const c of coins){
 
         if(c.collected)
             continue;
 
-        ctx.fillStyle="#facc15";
+
+        ctx.fillStyle=
+            "#facc15";
 
         ctx.beginPath();
 
@@ -1394,6 +2124,7 @@ function draw(){
         );
 
         ctx.fill();
+
 
         ctx.fillStyle="white";
 
@@ -1411,7 +2142,9 @@ function draw(){
     }
 
 
-    // ENEMIES
+    // =================================================
+    // MONSTERS
+    // =================================================
 
     for(const e of enemies){
 
@@ -1422,7 +2155,9 @@ function draw(){
             continue;
         }
 
-        ctx.fillStyle=e.color;
+
+        ctx.fillStyle=
+            e.color;
 
         ctx.fillRect(
             e.x,
@@ -1431,7 +2166,10 @@ function draw(){
             e.height
         );
 
-        ctx.fillStyle="#111827";
+
+        ctx.fillStyle=
+            "#111827";
+
 
         ctx.fillRect(
             e.x+e.width*.2,
@@ -1440,12 +2178,14 @@ function draw(){
             7
         );
 
+
         ctx.fillRect(
             e.x+e.width*.6,
             e.y+e.height*.2,
             7,
             7
         );
+
 
         drawHealth(
             e.x,
@@ -1458,36 +2198,15 @@ function draw(){
     }
 
 
+    // =================================================
     // PORTAL / FLAG
+    // =================================================
 
     const bossAlive=
         enemies.some(
             e=>e.boss
         );
 
-
-    if(!bossAlive){
-
-        ctx.strokeStyle=
-            "rgba(168,85,247,.45)";
-
-        ctx.lineWidth=6;
-
-        ctx.beginPath();
-
-        ctx.arc(
-            portal.x+25,
-            portal.y+40,
-            42,
-            0,
-            Math.PI*2
-        );
-
-        ctx.stroke();
-    }
-
-
-    // POLE
 
     ctx.fillStyle="white";
 
@@ -1499,8 +2218,6 @@ function draw(){
     );
 
 
-    // FLAG
-
     ctx.fillStyle=
         bossAlive
         ?" #64748b"
@@ -1508,6 +2225,7 @@ function draw(){
 
     ctx.fillStyle=
         ctx.fillStyle.trim();
+
 
     ctx.beginPath();
 
@@ -1533,7 +2251,8 @@ function draw(){
 
     ctx.fillStyle="white";
 
-    ctx.font="bold 13px Arial";
+    ctx.font=
+        "bold 13px Arial";
 
     ctx.fillText(
         bossAlive
@@ -1544,9 +2263,12 @@ function draw(){
     );
 
 
+    // =================================================
     // PLAYER
+    // =================================================
 
-    ctx.fillStyle="#7c3aed";
+    ctx.fillStyle=
+        "#7c3aed";
 
     ctx.fillRect(
         player.x,
@@ -1573,50 +2295,73 @@ function draw(){
     );
 
 
-    // SWORD SLASH
+    // =================================================
+    // SWORD
+    // =================================================
 
     if(player.attacking){
 
         ctx.save();
 
         const facing=
-            player.vx<0?-1:1;
+            player.vx<0
+            ?-1
+            :1;
+
 
         ctx.translate(
             player.x+
             player.width/2,
-
             player.y+
             player.height/2
         );
 
+
+        const progress=
+            1-
+            player.attackTimer/.22;
+
+
         ctx.rotate(
-            facing*-.8
+            facing*
+            (-1.1+
+            progress*2.2)
         );
 
-        ctx.fillStyle="#d1d5db";
+
+        // Blade
+
+        ctx.fillStyle=
+            swordColor();
 
         ctx.fillRect(
             facing*5,
-            -6,
-            facing*60,
+            -5,
+            facing*65,
             10
         );
 
-        ctx.fillStyle="#78350f";
+
+        // Handle
+
+        ctx.fillStyle=
+            "#78350f";
 
         ctx.fillRect(
-            facing*-8,
+            facing*-10,
             -4,
-            18,
-            7
+            20,
+            8
         );
+
 
         ctx.restore();
     }
 
 
+    // =================================================
     // BOSS WARNING
+    // =================================================
 
     for(const e of enemies){
 
@@ -1626,13 +2371,13 @@ function draw(){
         ){
 
             ctx.fillStyle=
-                "rgba(255,0,0,.25)";
+                "rgba(255,0,0,.3)";
 
             ctx.fillRect(
                 e.x-120,
-                e.y+e.height-15,
+                e.y+e.height-18,
                 e.width+240,
-                30
+                35
             );
 
             ctx.fillStyle="white";
@@ -1652,11 +2397,74 @@ function draw(){
     ctx.restore();
 
 
+    // =================================================
+    // HUD
+    // =================================================
+
     drawHUD();
+
+
+    // =================================================
+    // CONTROLS
+    // =================================================
+
     drawControls();
 
 
+    // =================================================
+    // SHOP BUTTON
+    // =================================================
+
+    if(
+        nearShop &&
+        !shopOpen
+    ){
+
+        const b=
+            getShopOpenButton();
+
+        ctx.fillStyle=
+            "rgba(0,0,0,.75)";
+
+        ctx.fillRect(
+            b.x,
+            b.y,
+            b.w,
+            b.h
+        );
+
+        ctx.strokeStyle=
+            "#fbbf24";
+
+        ctx.lineWidth=3;
+
+        ctx.strokeRect(
+            b.x,
+            b.y,
+            b.w,
+            b.h
+        );
+
+        ctx.fillStyle="white";
+
+        ctx.textAlign="center";
+
+        ctx.font=
+            "bold 20px Arial";
+
+        ctx.fillText(
+            "🏪 TAP TO SHOP",
+            W/2,
+            b.y+39
+        );
+
+        ctx.textAlign="left";
+    }
+
+
+    // =================================================
     // MESSAGE
+    // =================================================
 
     if(messageTimer>0){
 
@@ -1664,9 +2472,9 @@ function draw(){
             "rgba(0,0,0,.65)";
 
         ctx.fillRect(
-            W/2-150,
-            110,
-            300,
+            W/2-155,
+            125,
+            310,
             55
         );
 
@@ -1680,78 +2488,60 @@ function draw(){
         ctx.fillText(
             message,
             W/2,
-            145
+            160
         );
 
         ctx.textAlign="left";
     }
 
 
-    // GAME OVER / WIN
+    // =================================================
+    // SHOP SCREEN
+    // =================================================
 
-    if(gameOver||gameWon){
+    if(shopOpen)
+        drawShop();
 
-        ctx.fillStyle=
-            "rgba(0,0,0,.84)";
 
-        ctx.fillRect(
-            0,
-            0,
-            W,
-            H
-        );
+    // =================================================
+    // GAME OVER
+    // =================================================
 
-        ctx.textAlign="center";
-
-        ctx.fillStyle="white";
-
-        ctx.font=
-            "bold 30px Arial";
-
-        ctx.fillText(
-            gameWon
-            ?"🏆 YOU BEAT ALL 20 LEVELS!"
-            :"💀 GAME OVER",
-            W/2,
-            H/2-95
-        );
-
-        ctx.font="19px Arial";
-
-        ctx.fillText(
-            "Level: "+
-            (level+1),
-            W/2,
-            H/2-50
-        );
-
-        ctx.fillText(
-            "Coins collected: "+
-            totalCoins,
-            W/2,
-            H/2-15
-        );
-
-        ctx.fillText(
-            "Monsters defeated: "+
-            monstersKilled,
-            W/2,
-            H/2+20
-        );
-
-        ctx.fillText(
-            "Press R to play again",
-            W/2,
-            H/2+75
-        );
-
-        ctx.textAlign="left";
-    }
+    if(gameOver||gameWon)
+        drawEndScreen();
 }
 
 
 // =====================================================
-// BOSS
+// SWORD COLORS
+// =====================================================
+
+function swordColor(){
+
+    if(swordRarity==="COMMON")
+        return "#9ca3af";
+
+    if(swordRarity==="UNCOMMON")
+        return "#22c55e";
+
+    if(swordRarity==="RARE")
+        return "#3b82f6";
+
+    if(swordRarity==="EPIC")
+        return "#a855f7";
+
+    if(swordRarity==="LEGENDARY")
+        return "#facc15";
+
+    if(swordRarity==="MYTHIC")
+        return "#ef4444";
+
+    return "#9ca3af";
+}
+
+
+// =====================================================
+// BOSS DRAW
 // =====================================================
 
 function drawBoss(b){
@@ -1771,6 +2561,7 @@ function drawBoss(b){
         b.height
     );
 
+
     ctx.fillStyle="white";
 
     ctx.fillRect(
@@ -1787,24 +2578,6 @@ function drawBoss(b){
         20
     );
 
-    if(b.warning){
-
-        ctx.fillStyle="#f87171";
-
-        ctx.fillRect(
-            b.x-80,
-            b.y+70,
-            80,
-            35
-        );
-
-        ctx.fillRect(
-            b.x+b.width,
-            b.y+70,
-            80,
-            35
-        );
-    }
 
     drawHealth(
         b.x,
@@ -1828,7 +2601,10 @@ function drawHealth(
     ctx.fillStyle="#111827";
 
     ctx.fillRect(
-        x,y,w,h
+        x,
+        y,
+        w,
+        h
     );
 
     ctx.fillStyle="#22c55e";
@@ -1836,7 +2612,8 @@ function drawHealth(
     ctx.fillRect(
         x,
         y,
-        w*Math.max(
+        w*
+        Math.max(
             0,
             hp/max
         ),
@@ -1853,19 +2630,20 @@ function drawHUD(){
 
     const width=
         Math.min(
-            430,
+            450,
             W-20
         );
 
     ctx.fillStyle=
-        "rgba(0,0,0,.58)";
+        "rgba(0,0,0,.6)";
 
     ctx.fillRect(
         10,
         10,
         width,
-        110
+        125
     );
+
 
     ctx.fillStyle="white";
 
@@ -1881,6 +2659,7 @@ function drawHUD(){
         35
     );
 
+
     ctx.font="14px Arial";
 
     ctx.fillText(
@@ -1889,39 +2668,51 @@ function drawHUD(){
         " / "+
         player.maxHP,
         22,
-        61
+        60
     );
 
     ctx.fillText(
         "💗 Lives: "+
         lives,
         22,
-        84
+        83
     );
 
     ctx.fillText(
         "🪙 Coins: "+
         score,
         135,
-        84
+        83
     );
 
     ctx.fillText(
-        "⚔ Kills: "+
+        "☠ Kills: "+
         monstersKilled,
         250,
-        84
+        83
+    );
+
+    ctx.fillText(
+        "⚔ "+
+        swordRarity+
+        " — "+
+        swordDamage+
+        " DMG",
+        22,
+        108
     );
 }
 
 
 // =====================================================
-// BUTTONS
+// CONTROLS
 // =====================================================
 
 function drawControls(){
 
-    const b=buttons();
+    const b=
+        getButtons();
+
 
     drawControl(
         b.left,
@@ -1943,6 +2734,7 @@ function drawControls(){
         touchAttack
     );
 
+
     ctx.textAlign="center";
 
     ctx.fillStyle="white";
@@ -1950,11 +2742,13 @@ function drawControls(){
     ctx.font=
         "bold 35px Arial";
 
+
     ctx.fillText(
         "◀",
         b.left.x+b.left.w/2,
         b.left.y+48
     );
+
 
     ctx.fillText(
         "▶",
@@ -1962,20 +2756,24 @@ function drawControls(){
         b.right.y+48
     );
 
+
     ctx.fillText(
         "▲",
         b.jump.x+b.jump.w/2,
         b.jump.y+48
     );
 
+
     ctx.font=
         "bold 27px Arial";
+
 
     ctx.fillText(
         "⚔",
         b.attack.x+b.attack.w/2,
         b.attack.y+48
     );
+
 
     ctx.textAlign="left";
 }
@@ -2009,20 +2807,331 @@ function drawControl(b,active){
 
 
 // =====================================================
+// SHOP DRAW
+// =====================================================
+
+function drawShop(){
+
+    ctx.fillStyle=
+        "rgba(0,0,0,.88)";
+
+    ctx.fillRect(
+        0,
+        0,
+        W,
+        H
+    );
+
+
+    ctx.fillStyle="white";
+
+    ctx.textAlign="center";
+
+    ctx.font=
+        "bold 32px Arial";
+
+    ctx.fillText(
+        "🏪 SHOP",
+        W/2,
+        55
+    );
+
+
+    ctx.font="17px Arial";
+
+    ctx.fillText(
+        "🪙 Coins: "+
+        score,
+        W/2,
+        85
+    );
+
+
+    const cardW=
+        Math.min(
+            200,
+            (W-50)/3
+        );
+
+    const gap=10;
+
+    const total=
+        cardW*3+
+        gap*2;
+
+    const start=
+        W/2-total/2;
+
+
+    for(
+        let i=0;
+        i<shopItems.length;
+        i++
+    ){
+
+        const item=
+            shopItems[i];
+
+        const x=
+            start+
+            i*(cardW+gap);
+
+        const y=125;
+
+
+        ctx.fillStyle=
+            "rgba(255,255,255,.12)";
+
+        ctx.fillRect(
+            x,
+            y,
+            cardW,
+            245
+        );
+
+
+        ctx.strokeStyle=
+            item.damage
+            ?swordColor()
+            :"rgba(255,255,255,.35)";
+
+        ctx.lineWidth=3;
+
+        ctx.strokeRect(
+            x,
+            y,
+            cardW,
+            245
+        );
+
+
+        ctx.fillStyle="white";
+
+        ctx.font=
+            "bold 16px Arial";
+
+        ctx.fillText(
+            item.name,
+            x+cardW/2,
+            y+40
+        );
+
+
+        ctx.font="13px Arial";
+
+        ctx.fillText(
+            item.description,
+            x+cardW/2,
+            y+75
+        );
+
+
+        if(item.damage){
+
+            ctx.fillStyle=
+                swordColor();
+
+            ctx.font=
+                "bold 18px Arial";
+
+            ctx.fillText(
+                item.rarity+
+                " • "+
+                item.damage+
+                " DMG",
+                x+cardW/2,
+                y+112
+            );
+        }
+
+
+        ctx.fillStyle="white";
+
+        ctx.font=
+            "bold 18px Arial";
+
+        ctx.fillText(
+            "🪙 "+
+            item.price,
+            x+cardW/2,
+            y+145
+        );
+
+
+        const affordable=
+            score>=item.price;
+
+
+        ctx.fillStyle=
+            affordable
+            ?"rgba(34,197,94,.85)"
+            :"rgba(90,90,90,.7)";
+
+
+        ctx.fillRect(
+            x+10,
+            y+170,
+            cardW-20,
+            55
+        );
+
+
+        ctx.fillStyle="white";
+
+        ctx.font=
+            "bold 16px Arial";
+
+
+        ctx.fillText(
+            affordable
+            ?"BUY"
+            :"CAN'T AFFORD",
+            x+cardW/2,
+            y+205
+        );
+    }
+
+
+    // CLOSE BUTTON
+
+    ctx.fillStyle=
+        "rgba(239,68,68,.85)";
+
+    ctx.fillRect(
+        W/2-85,
+        H-90,
+        170,
+        55
+    );
+
+
+    ctx.fillStyle="white";
+
+    ctx.font=
+        "bold 18px Arial";
+
+    ctx.fillText(
+        "CLOSE",
+        W/2,
+        H-55
+    );
+
+
+    ctx.textAlign="left";
+}
+
+
+// =====================================================
+// END SCREEN
+// =====================================================
+
+function drawEndScreen(){
+
+    ctx.fillStyle=
+        "rgba(0,0,0,.87)";
+
+    ctx.fillRect(
+        0,
+        0,
+        W,
+        H
+    );
+
+
+    ctx.fillStyle="white";
+
+    ctx.textAlign="center";
+
+    ctx.font=
+        "bold 30px Arial";
+
+
+    ctx.fillText(
+        gameWon
+        ?"🏆 YOU BEAT ALL 20 LEVELS!"
+        :"💀 GAME OVER",
+        W/2,
+        H/2-115
+    );
+
+
+    ctx.font="19px Arial";
+
+
+    ctx.fillText(
+        "Level reached: "+
+        (level+1),
+        W/2,
+        H/2-65
+    );
+
+
+    ctx.fillText(
+        "🪙 Total coins: "+
+        totalCoins,
+        W/2,
+        H/2-30
+    );
+
+
+    ctx.fillText(
+        "☠ Monsters defeated: "+
+        monstersKilled,
+        W/2,
+        H/2+5
+    );
+
+
+    ctx.fillText(
+        "⚔ Sword: "+
+        swordRarity+
+        " ("+
+        swordDamage+
+        " damage)",
+        W/2,
+        H/2+40
+    );
+
+
+    ctx.fillText(
+        "Press R to play again",
+        W/2,
+        H/2+90
+    );
+
+
+    ctx.textAlign="left";
+}
+
+
+// =====================================================
 // RESTART
 // =====================================================
 
 function restart(){
 
     level=0;
+
     score=0;
+
     totalCoins=0;
+
     monstersKilled=0;
+
     lives=3;
+
+    swordDamage=3;
+
+    swordRarity="COMMON";
+
+    purchasedPermanent.clear();
+
     camera=0;
 
     gameOver=false;
     gameWon=false;
+
+    shopOpen=false;
 
     loadLevel(0);
 }
@@ -2039,15 +3148,17 @@ loadLevel(0);
 // GAME LOOP
 // =====================================================
 
-function loop(){
+function gameLoop(){
 
     update();
     draw();
 
-    requestAnimationFrame(loop);
+    requestAnimationFrame(
+        gameLoop
+    );
 }
 
-loop();
+gameLoop();
 
 </script>
 
