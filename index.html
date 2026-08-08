@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Skybound Runner</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#070b16;font-family:Arial,Helvetica,sans-serif;color:white}
+body{touch-action:none}
+canvas{display:block;width:100vw;height:100vh;touch-action:none}
+#menu{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;text-align:center;background:radial-gradient(circle at 50% 35%,rgba(124,58,237,.35),transparent 35%),linear-gradient(135deg,#070b16,#111827 55%,#1e1b4b);padding:20px}
+.menu-box{width:min(520px,94vw);padding:35px 25px;border:1px solid rgba(255,255,255,.16);border-radius:28px;background:rgba(15,23,42,.82);box-shadow:0 25px 80px rgba(0,0,0,.55);backdrop-filter:blur(12px)}
+.logo{font-size:clamp(38px,9vw,64px);font-weight:900;letter-spacing:-3px;margin-bottom:8px;background:linear-gradient(90deg,#c084fc,#60a5fa,#22d3ee);-webkit-background-clip:text;color:transparent}
+.subtitle{color:#cbd5e1;font-size:16px;margin-bottom:28px}
+.play-btn{border:0;border-radius:16px;padding:17px 55px;font-size:22px;font-weight:900;color:white;background:linear-gradient(135deg,#7c3aed,#2563eb);box-shadow:0 10px 30px rgba(99,102,241,.4);cursor:pointer}
+.play-btn:active{transform:scale(.95)}
+.menu-info{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin-top:25px;color:#94a3b8;font-size:13px}
+.menu-info span{padding:8px 12px;border-radius:10px;background:rgba(255,255,255,.06)}
+#hud{position:fixed;top:14px;left:14px;right:14px;z-index:10;display:none;align-items:center;justify-content:space-between;gap:10px;pointer-events:none}
+.hud-left{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.hud-card{padding:9px 13px;border-radius:13px;background:rgba(7,11,22,.72);border:1px solid rgba(255,255,255,.13);backdrop-filter:blur(8px);font-weight:bold;font-size:14px;box-shadow:0 5px 20px rgba(0,0,0,.2)}
+.hud-buttons{display:flex;gap:7px;pointer-events:auto}
+.hud-btn{width:42px;height:42px;border:1px solid rgba(255,255,255,.2);border-radius:12px;color:white;background:rgba(7,11,22,.72);font-size:18px;cursor:pointer}
+#pauseScreen,#winScreen{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;text-align:center;background:rgba(2,6,23,.82);backdrop-filter:blur(7px)}
+.overlay-box{width:min(460px,90vw);padding:35px 25px;border-radius:25px;background:rgba(15,23,42,.94);border:1px solid rgba(255,255,255,.15);box-shadow:0 25px 80px rgba(0,0,0,.5)}
+.overlay-box h1{margin:0 0 12px;font-size:36px}
+.overlay-box p{color:#cbd5e1}
+.action-btn{margin:7px;padding:13px 22px;border:0;border-radius:13px;color:white;background:#334155;font-weight:bold;cursor:pointer}
+.action-btn.primary{background:linear-gradient(135deg,#7c3aed,#2563eb)}
+#controls{position:fixed;left:0;right:0;bottom:18px;z-index:15;display:none;justify-content:space-between;align-items:end;padding:0 18px;pointer-events:none}
+.control-group{display:flex;gap:10px}
+.control{width:72px;height:72px;border-radius:20px;border:2px solid rgba(255,255,255,.35);background:rgba(15,23,42,.5);color:white;font-size:30px;font-weight:bold;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(7px);box-shadow:0 8px 25px rgba(0,0,0,.25);pointer-events:auto;user-select:none;touch-action:none}
+.control.active{background:rgba(124,58,237,.75);transform:scale(.94)}
+@media(max-width:600px){.hud-card{padding:7px 9px;font-size:12px}.hud-btn{width:38px;height:38px}.control{width:65px;height:65px}#controls{bottom:12px}}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="menu">
+<div class="menu-box">
+<div class="logo">SKYBOUND</div>
+<div class="subtitle">RUN • JUMP • COLLECT • SURVIVE</div>
+<button class="play-btn" id="playBtn">▶ PLAY</button>
+<div class="menu-info"><span>🪙 Collect coins</span><span>👾 Defeat enemies</span><span>🚩 Reach the portal</span></div>
+</div>
+</div>
+
+<div id="hud">
+<div class="hud-left">
+<div class="hud-card" id="levelText">🌎 LEVEL 1</div>
+<div class="hud-card" id="scoreText">🪙 0</div>
+<div class="hud-card" id="livesText">❤️ 3</div>
+</div>
+<div class="hud-buttons">
+<button class="hud-btn" id="pauseBtn">Ⅱ</button>
+<button class="hud-btn" id="restartBtn">↻</button>
+<button class="hud-btn" id="fullscreenBtn">⛶</button>
+</div>
+</div>
+
+<div id="controls">
+<div class="control-group">
+<div class="control" id="leftBtn">◀</div>
+<div class="control" id="rightBtn">▶</div>
+</div>
+<div class="control" id="jumpBtn">▲</div>
+</div>
+
+<div id="pauseScreen">
+<div class="overlay-box">
+<h1>PAUSED</h1><p>Take a break, runner.</p>
+<button class="action-btn primary" id="resumeBtn">▶ RESUME</button>
+<button class="action-btn" id="pauseRestartBtn">↻ RESTART</button>
+</div>
+</div>
+
+<div id="winScreen">
+<div class="overlay-box">
+<h1>🏆 YOU WON!</h1>
+<p>You cleared every level of Skybound Runner.</p>
+<h2 id="finalScore">🪙 0 COINS</h2>
+<button class="action-btn primary" id="playAgainBtn">▶ PLAY AGAIN</button>
+<button class="action-btn" id="winMenuBtn">MENU</button>
+</div>
+</div>
+
+<script>
+const canvas=document.getElementById("game"),ctx=canvas.getContext("2d");
+let W=innerWidth,H=innerHeight;
+function resize(){W=innerWidth;H=innerHeight;canvas.width=W*devicePixelRatio;canvas.height=H*devicePixelRatio;canvas.style.width=W+"px";canvas.style.height=H+"px";ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0)}
+addEventListener("resize",resize);resize();
+
+const levels=[
+{name:"MEADOW",sky1:"#60a5fa",sky2:"#dbeafe",platforms:[[0,520,700,80],[800,460,300,40],[1180,400,300,40],[1550,500,400,40],[2020,430,330,40],[2420,350,300,40],[2800,470,400,40],[3300,390,400,40]],coins:[[200,470],[500,430],[880,410],[1260,350],[1650,450],[2100,380],[2500,300],[2900,420],[3450,340]],enemies:[[900,420,30,40,800,1050,1.5],[1650,460,30,40,1560,1900,1.8],[2900,430,30,40,2820,3150,1.5]],portal:[3500,330]},
+{name:"CAVERNS",sky1:"#172033",sky2:"#475569",platforms:[[0,520,500,80],[600,450,260,40],[950,370,240,40],[1280,500,300,40],[1680,420,250,40],[2010,320,260,40],[2370,450,300,40],[2780,350,330,40],[3200,470,400,40]],coins:[[180,470],[680,400],[1030,320],[1380,450],[1740,370],[2080,270],[2450,400],[2870,300],[3300,420]],enemies:[[680,410,30,40,610,820,1.7],[1380,460,30,40,1300,1530,2],[2450,410,30,40,2390,2640,1.7],[2900,310,30,40,2820,3050,2]],portal:[3500,400]},
+{name:"SKYLANDS",sky1:"#a78bfa",sky2:"#f5d0fe",platforms:[[0,500,420,60],[520,420,230,35],[850,330,220,35],[1180,450,240,35],[1530,350,220,35],[1840,260,220,35],[2140,400,260,35],[2500,300,220,35],[2800,420,500,35]],coins:[[150,450],[590,370],[920,280],[1250,400],[1600,300],[1910,210],[2220,350],[2570,250],[2900,370],[3200,370]],enemies:[[570,380,30,40,530,720,1.6],[1880,220,30,40,1840,2010,1.5],[2900,380,30,40,2830,3200,2]],portal:[3230,350]},
+{name:"VOLCANO",sky1:"#450a0a",sky2:"#f97316",platforms:[[0,520,520,80],[650,450,230,40],[1000,350,220,40],[1350,470,260,40],[1740,380,230,40],[2070,290,240,40],[2440,430,260,40],[2820,330,300,40],[3200,460,500,40]],coins:[[180,470],[720,400],[1070,300],[1430,420],[1810,330],[2140,240],[2520,380],[2900,280],[3300,410],[3550,410]],enemies:[[720,410,30,40,670,840,2],[1420,430,30,40,1360,1580,2.2],[2500,390,30,40,2450,2660,2],[3300,420,30,40,3230,3600,2.3]],portal:[3650,395]}
+];
+
+let level=0,score=0,lives=3,camera=0,gameWon=false,paused=false,playing=false,message="",messageTimer=0,player,coins=[],enemies=[],portal={};
+let keyboardLeft=false,keyboardRight=false,keyboardJump=false,touchLeft=false,touchRight=false,touchJump=false;
+
+function loadLevel(n){
+ level=n;const L=levels[level];
+ player={x:80,y:400,width:34,height:48,vx:0,vy:0,speed:7,jumpPower:-13,ground:false,checkpoint:80};
+ coins=L.coins.map(c=>({x:c[0],y:c[1],collected:false}));
+ enemies=L.enemies.map(e=>({x:e[0],y:e[1],width:e[2],height:e[3],min:e[4],max:e[5],vx:e[6],dead:false}));
+ portal={x:L.portal[0],y:L.portal[1],width:50,height:70};camera=0;message=L.name;messageTimer=100;updateHUD();
+}
+function startGame(){playing=true;paused=false;gameWon=false;score=0;lives=3;loadLevel(0);document.getElementById("menu").style.display="none";document.getElementById("hud").style.display="flex";document.getElementById("controls").style.display="flex";hidePause();hideWin()}
+function restartGame(){score=0;lives=3;gameWon=false;paused=false;loadLevel(0);hidePause();hideWin()}
+function returnToMenu(){playing=false;paused=false;document.getElementById("menu").style.display="flex";document.getElementById("hud").style.display="none";document.getElementById("controls").style.display="none";hidePause();hideWin()}
+
+document.addEventListener("keydown",e=>{
+ if(e.key==="ArrowLeft"||e.key.toLowerCase()==="a")keyboardLeft=true;
+ if(e.key==="ArrowRight"||e.key.toLowerCase()==="d")keyboardRight=true;
+ if(e.key==="ArrowUp"||e.key.toLowerCase()==="w"||e.key===" "){keyboardJump=true;e.preventDefault()}
+ if(e.key.toLowerCase()==="p")togglePause();
+ if(e.key.toLowerCase()==="r")restartGame();
+});
+document.addEventListener("keyup",e=>{
+ if(e.key==="ArrowLeft"||e.key.toLowerCase()==="a")keyboardLeft=false;
+ if(e.key==="ArrowRight"||e.key.toLowerCase()==="d")keyboardRight=false;
+ if(e.key==="ArrowUp"||e.key.toLowerCase()==="w"||e.key===" ")keyboardJump=false;
+});
+
+const fingers=new Map();
+canvas.addEventListener("pointerdown",e=>{fingers.set(e.pointerId,{x:e.clientX,y:e.clientY});canvas.setPointerCapture(e.pointerId);updateTouchControls()});
+canvas.addEventListener("pointermove",e=>{if(fingers.has(e.pointerId)){fingers.set(e.pointerId,{x:e.clientX,y:e.clientY});updateTouchControls()}});
+function removeFinger(e){fingers.delete(e.pointerId);updateTouchControls()}
+canvas.addEventListener("pointerup",removeFinger);canvas.addEventListener("pointercancel",removeFinger);
+
+function updateTouchControls(){
+ touchLeft=false;touchRight=false;touchJump=false;
+ for(const f of fingers.values())if(f.y>H-150){if(f.x<W/3)touchLeft=true;else if(f.x<W*2/3)touchRight=true;else touchJump=true}
+ updateButtonVisuals();
+}
+function setupControl(el,p){
+ el.addEventListener("pointerdown",e=>{e.preventDefault();el.setPointerCapture(e.pointerId);if(p==="left")touchLeft=true;if(p==="right")touchRight=true;if(p==="jump")touchJump=true;el.classList.add("active")});
+ const release=()=>{if(p==="left")touchLeft=false;if(p==="right")touchRight=false;if(p==="jump")touchJump=false;el.classList.remove("active")};
+ el.addEventListener("pointerup",release);el.addEventListener("pointercancel",release);
+}
+setupControl(document.getElementById("leftBtn"),"left");setupControl(document.getElementById("rightBtn"),"right");setupControl(document.getElementById("jumpBtn"),"jump");
+function updateButtonVisuals(){leftBtn.classList.toggle("active",touchLeft);rightBtn.classList.toggle("active",touchRight);jumpBtn.classList.toggle("active",touchJump)}
+
+function collision(a,b){return a.x<b.x+b.width&&a.x+a.width>b.x&&a.y<b.y+b.height&&a.y+a.height>b.y}
+function showMessage(t){message=t;messageTimer=80}
+function damage(){
+ lives--;
+ if(lives<=0){lives=3;score=0;loadLevel(0);showMessage("GAME OVER")}
+ else{player.x=player.checkpoint;player.y=300;player.vx=0;player.vy=0;showMessage("OUCH!")}
+ updateHUD();
+}
+
+function update(){
+ if(!playing||paused||gameWon)return;
+ const L=levels[level],moveLeft=keyboardLeft||touchLeft,moveRight=keyboardRight||touchRight,doJump=keyboardJump||touchJump;
+ if(moveLeft)player.vx-=.8;if(moveRight)player.vx+=.8;if(!moveLeft&&!moveRight)player.vx*=.82;
+ player.vx=Math.max(-player.speed,Math.min(player.speed,player.vx));
+ if(doJump&&player.ground){player.vy=player.jumpPower;player.ground=false}
+ player.vy=Math.min(player.vy+.65,17);player.x+=player.vx;player.y+=player.vy;
+ player.x=Math.max(0,Math.min(3700,player.x));player.ground=false;
+ for(const p of L.platforms){
+  const platform={x:p[0],y:p[1],width:p[2],height:p[3]};
+  if(collision(player,platform)){
+   if(player.vy>=0&&player.y+player.height-player.vy<=platform.y+8){player.y=platform.y-player.height;player.vy=0;player.ground=true}
+   else if(player.vy<0&&player.y-player.vy>=platform.y+platform.height){player.y=platform.y+platform.height;player.vy=0}
+  }
+ }
+ if(player.x>1500)player.checkpoint=1450;if(player.x>2600)player.checkpoint=2550;
+ for(const c of coins)if(!c.collected&&Math.hypot(player.x+17-c.x,player.y+24-c.y)<30){c.collected=true;score++;showMessage("+1 COIN!")}
+ for(const e of enemies){
+  e.x+=e.vx;if(e.x<e.min||e.x>e.max)e.vx*=-1;
+  if(collision(player,e)){
+   if(player.vy>0&&player.y+player.height<e.y+20){e.dead=true;player.vy=-10;score+=2;showMessage("+2!")}else damage();
+  }
+ }
+ enemies=enemies.filter(e=>!e.dead);
+ if(collision(player,portal)){if(level<levels.length-1)loadLevel(level+1);else{gameWon=true;showWinScreen()}}
+ if(player.y>H+400)damage();
+ camera+=(player.x-W*.35-camera)*.1;camera=Math.max(0,Math.min(3700-W,camera));
+ if(messageTimer>0)messageTimer--;updateHUD();
+}
+
+function draw(){
+ const L=levels[level],g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,L.sky1);g.addColorStop(1,L.sky2);ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+ ctx.save();ctx.translate(-camera,0);
+ ctx.fillStyle="rgba(255,255,255,.11)";
+ for(let i=-1;i<10;i++){ctx.beginPath();ctx.moveTo(i*600,600);ctx.lineTo(i*600+300,180);ctx.lineTo(i*600+650,600);ctx.fill()}
+ for(const p of L.platforms){ctx.fillStyle="#263244";ctx.fillRect(p[0],p[1],p[2],p[3]);ctx.fillStyle=level===3?"#fb923c":"#22c55e";ctx.fillRect(p[0],p[1],p[2],7)}
+ for(const c of coins)if(!c.collected){ctx.fillStyle="#facc15";ctx.beginPath();ctx.arc(c.x,c.y,11,0,Math.PI*2);ctx.fill();ctx.fillStyle="white";ctx.beginPath();ctx.arc(c.x-3,c.y-3,3,0,Math.PI*2);ctx.fill()}
+ for(const e of enemies){ctx.fillStyle="#ef4444";ctx.fillRect(e.x,e.y,e.width,e.height);ctx.fillStyle="#111827";ctx.fillRect(e.x+5,e.y+9,7,7);ctx.fillRect(e.x+19,e.y+9,7,7)}
+ ctx.shadowColor="#c084fc";ctx.shadowBlur=20;ctx.fillStyle="white";ctx.fillRect(portal.x,portal.y,5,portal.height);ctx.fillStyle="#a855f7";ctx.beginPath();ctx.moveTo(portal.x+5,portal.y);ctx.lineTo(portal.x+50,portal.y+18);ctx.lineTo(portal.x+5,portal.y+36);ctx.fill();ctx.shadowBlur=0;
+ ctx.fillStyle="#7c3aed";ctx.fillRect(player.x,player.y,player.width,player.height);ctx.fillStyle="white";ctx.fillRect(player.x+6,player.y+10,7,7);ctx.fillRect(player.x+20,player.y+10,7,7);
+ ctx.restore();
+ if(messageTimer>0){ctx.fillStyle="rgba(0,0,0,.65)";ctx.fillRect(W/2-130,105,260,48);ctx.fillStyle="white";ctx.textAlign="center";ctx.font="bold 20px Arial";ctx.fillText(message,W/2,136);ctx.textAlign="left"}
+}
+
+function updateHUD(){document.getElementById("levelText").textContent="🌎 LEVEL "+(level+1)+" • "+levels[level].name;document.getElementById("scoreText").textContent="🪙 "+score;document.getElementById("livesText").textContent="❤️ "+lives}
+function togglePause(){if(!playing||gameWon)return;paused=!paused;document.getElementById("pauseScreen").style.display=paused?"flex":"none"}
+function hidePause(){document.getElementById("pauseScreen").style.display="none"}
+function showWinScreen(){document.getElementById("finalScore").textContent="🪙 "+score+" COINS";document.getElementById("winScreen").style.display="flex"}
+function hideWin(){document.getElementById("winScreen").style.display="none"}
+async function fullscreen(){try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen();else await document.exitFullscreen()}catch(e){}}
+
+playBtn.addEventListener("click",startGame);restartBtn.addEventListener("click",restartGame);pauseBtn.addEventListener("click",togglePause);fullscreenBtn.addEventListener("click",fullscreen);resumeBtn.addEventListener("click",togglePause);pauseRestartBtn.addEventListener("click",restartGame);playAgainBtn.addEventListener("click",restartGame);winMenuBtn.addEventListener("click",returnToMenu);
+
+function gameLoop(){update();draw();requestAnimationFrame(gameLoop)}
+loadLevel(0);gameLoop();
+</script>
+</body>
+</html>
