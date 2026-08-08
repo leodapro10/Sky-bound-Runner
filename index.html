@@ -23,7 +23,8 @@ html,body{
 
 canvas{
     position:fixed;
-    inset:0;
+    left:0;
+    top:0;
     width:100vw;
     height:100vh;
     display:block;
@@ -33,37 +34,35 @@ canvas{
 </head>
 
 <body>
+
 <canvas id="game"></canvas>
 
 <script>
+
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
 
-let W=innerWidth,H=innerHeight,dpr=1;
+let W=innerWidth;
+let H=innerHeight;
+let dpr=1;
 
 function resize(){
+
     W=innerWidth;
     H=innerHeight;
+
     dpr=Math.min(devicePixelRatio||1,2);
+
     canvas.width=W*dpr;
     canvas.height=H*dpr;
+
     ctx.setTransform(dpr,0,0,dpr,0,0);
 }
+
 addEventListener("resize",resize);
 addEventListener("orientationchange",resize);
+
 resize();
-
-
-// =====================================================
-// GAME STATES
-// =====================================================
-
-let screen="start";
-// start, game, gameover, won
-
-let speedRun=false;
-let speedRunStart=0;
-let speedRunEnd=0;
 
 
 // =====================================================
@@ -83,29 +82,38 @@ let keyAttack=false;
 const fingers=new Map();
 
 function getButtons(){
-    const s=Math.min(105,Math.max(82,W*.14));
+
+    const s=Math.min(
+        105,
+        Math.max(82,W*.15)
+    );
+
     const gap=14;
     const bottom=20;
 
-    return {
+    return{
+
         left:{
             x:20,
             y:H-s-bottom,
             w:s,
             h:s
         },
+
         right:{
             x:20+s+gap,
             y:H-s-bottom,
             w:s,
             h:s
         },
+
         jump:{
             x:W-s*2-gap-20,
             y:H-s-bottom,
             w:s,
             h:s
         },
+
         attack:{
             x:W-s-20,
             y:H-s-bottom,
@@ -115,22 +123,28 @@ function getButtons(){
     };
 }
 
-function point(e){
+function getPoint(e){
+
     const r=canvas.getBoundingClientRect();
-    return {
+
+    return{
         x:e.clientX-r.left,
         y:e.clientY-r.top
     };
 }
 
 function inside(p,b){
-    return p.x>=b.x &&
-           p.x<=b.x+b.w &&
-           p.y>=b.y &&
-           p.y<=b.y+b.h;
+
+    return(
+        p.x>=b.x &&
+        p.x<=b.x+b.w &&
+        p.y>=b.y &&
+        p.y<=b.y+b.h
+    );
 }
 
-function updateTouches(){
+function updateTouchControls(){
+
     touchLeft=false;
     touchRight=false;
     touchJump=false;
@@ -139,55 +153,80 @@ function updateTouches(){
     const b=getButtons();
 
     for(const p of fingers.values()){
-        if(inside(p,b.left))touchLeft=true;
-        if(inside(p,b.right))touchRight=true;
-        if(inside(p,b.jump))touchJump=true;
-        if(inside(p,b.attack))touchAttack=true;
+
+        if(inside(p,b.left)) touchLeft=true;
+        if(inside(p,b.right)) touchRight=true;
+        if(inside(p,b.jump)) touchJump=true;
+        if(inside(p,b.attack)) touchAttack=true;
     }
 }
 
+
+// =====================================================
+// POINTER INPUT
+// =====================================================
+
 canvas.addEventListener("pointerdown",e=>{
+
     e.preventDefault();
 
-    const p=point(e);
+    const p=getPoint(e);
+
 
     // START SCREEN
+
     if(screen==="start"){
+
         if(inside(p,getPlayButton())){
+
             startGame(false);
             return;
         }
 
-        if(inside(p,getSpeedButton())){
+        if(inside(p,getSpeedRunButton())){
+
             startGame(true);
             return;
         }
+
+        return;
     }
 
-    // RETRY / END SCREEN
-    if(screen==="gameover"||screen==="won"){
+
+    // END SCREEN
+
+    if(gameOver||gameWon){
+
         if(inside(p,getRetryButton())){
-            startGame(speedRun);
+
+            restart();
             return;
         }
 
-        if(inside(p,getHomeButton())){
-            screen="start";
-            return;
-        }
+        return;
     }
+
 
     // SHOP
+
     if(shopOpen){
+
         handleShopTouch(p);
         return;
     }
 
-    // OPEN SHOP
-    if(nearShop && inside(p,getShopOpenButton())){
+
+    // SHOP OPEN
+
+    if(
+        nearShop &&
+        inside(p,getShopOpenButton())
+    ){
+
         shopOpen=true;
         return;
     }
+
 
     fingers.set(e.pointerId,p);
 
@@ -195,97 +234,89 @@ canvas.addEventListener("pointerdown",e=>{
         canvas.setPointerCapture(e.pointerId);
     }catch(_){}
 
-    updateTouches();
+    updateTouchControls();
+
 },{passive:false});
 
+
 canvas.addEventListener("pointermove",e=>{
+
     e.preventDefault();
 
     if(fingers.has(e.pointerId)){
-        fingers.set(e.pointerId,point(e));
-        updateTouches();
+
+        fingers.set(
+            e.pointerId,
+            getPoint(e)
+        );
+
+        updateTouchControls();
     }
+
 },{passive:false});
 
+
 function pointerEnd(e){
+
     fingers.delete(e.pointerId);
-    updateTouches();
+    updateTouchControls();
 }
 
 canvas.addEventListener("pointerup",pointerEnd);
 canvas.addEventListener("pointercancel",pointerEnd);
+canvas.addEventListener("pointerleave",pointerEnd);
+
+
+// =====================================================
+// KEYBOARD
+// =====================================================
 
 document.addEventListener("keydown",e=>{
+
     const k=e.key.toLowerCase();
 
-    if(k==="arrowleft"||k==="a")keyLeft=true;
-    if(k==="arrowright"||k==="d")keyRight=true;
+    if(k==="arrowleft"||k==="a")
+        keyLeft=true;
+
+    if(k==="arrowright"||k==="d")
+        keyRight=true;
 
     if(k==="arrowup"||k==="w"||k===" "){
+
         keyJump=true;
         e.preventDefault();
     }
 
     if(k==="j"||k==="f"||k==="z"){
+
         keyAttack=true;
         e.preventDefault();
     }
 
     if(k==="r"){
-        if(screen==="gameover"||screen==="won")
-            startGame(speedRun);
+
+        if(gameOver||gameWon)
+            restart();
     }
 });
 
+
 document.addEventListener("keyup",e=>{
+
     const k=e.key.toLowerCase();
 
-    if(k==="arrowleft"||k==="a")keyLeft=false;
-    if(k==="arrowright"||k==="d")keyRight=false;
-    if(k==="arrowup"||k==="w"||k===" ")keyJump=false;
-    if(k==="j"||k==="f"||k==="z")keyAttack=false;
+    if(k==="arrowleft"||k==="a")
+        keyLeft=false;
+
+    if(k==="arrowright"||k==="d")
+        keyRight=false;
+
+    if(k==="arrowup"||k==="w"||k===" ")
+        keyJump=false;
+
+    if(k==="j"||k==="f"||k==="z")
+        keyAttack=false;
 });
-
-
-// =====================================================
-// BUTTONS
-// =====================================================
-
-function getPlayButton(){
-    return {
-        x:W/2-130,
-        y:H/2-50,
-        w:260,
-        h:65
-    };
-}
-
-function getSpeedButton(){
-    return {
-        x:W/2-130,
-        y:H/2+35,
-        w:260,
-        h:65
-    };
-}
-
-function getRetryButton(){
-    return {
-        x:W/2-130,
-        y:H/2+90,
-        w:260,
-        h:65
-    };
-}
-
-function getHomeButton(){
-    return {
-        x:W/2-130,
-        y:H/2+170,
-        w:260,
-        h:60
-    };
-}
 
 
 // =====================================================
@@ -301,87 +332,164 @@ const themes=[
     ["#450a0a","#f97316","VOLCANO"]
 ];
 
+
 for(let n=0;n<20;n++){
 
     const platforms=[];
+
     let x=0;
 
-    for(let i=0;i<15;i++){
+    for(let i=0;i<14;i++){
 
         let y;
 
         if(i===0){
+
             y=500;
+
         }else{
-            const prev=platforms[i-1][1];
+
+            const previous=
+                platforms[i-1][1];
+
+            let change=
+                ((i*31+n*17)%121)-60;
 
             // Keep platforms reachable.
-            const change=((i*31+n*17)%81)-40;
 
-            y=Math.max(
-                360,
-                Math.min(520,prev+change)
-            );
+            change=
+                Math.max(
+                    -70,
+                    Math.min(70,change)
+                );
+
+            y=
+                previous+
+                change;
+
+            y=
+                Math.max(
+                    370,
+                    Math.min(520,y)
+                );
         }
 
-        const width=330+((i*47+n*13)%100);
 
-        platforms.push([x,y,width,45]);
+        const width=
+            320+
+            ((i*47+n*13)%100);
 
-        x+=width+55+((i*17+n*11)%30);
+
+        platforms.push([
+            x,
+            y,
+            width,
+            45
+        ]);
+
+
+        x+=
+            width+
+            55+
+            ((i*17+n*11)%30);
     }
 
-    platforms.push([x,450,850,50]);
+
+    // Large final platform.
+
+    platforms.push([
+        x,
+        450,
+        850,
+        50
+    ]);
+
 
     const coins=[];
 
     for(const p of platforms){
+
         coins.push([
             p[0]+p[2]/2,
             p[1]-35
         ]);
     }
 
+
     const monsters=[];
 
-    for(let m=0;m<7;m++){
+    for(let m=0;m<6;m++){
+
+        const pi=
+            Math.min(
+                m+1,
+                platforms.length-2
+            );
+
+        const p=
+            platforms[pi];
+
 
         let type=1;
 
-        if(n>=5&&m>=3)type=2;
-        if(n>=10&&m>=4)type=3;
-        if(n>=15&&m>=5)type=4;
+        if(n>=5 && m>=2)
+            type=2;
 
-        const pi=Math.min(
-            m+1,
-            platforms.length-2
-        );
+        if(n>=10 && m>=3)
+            type=3;
 
-        const p=platforms[pi];
+        if(n>=15 && m>=4)
+            type=4;
 
-        // Spawn ON the platform.
+
         monsters.push({
-            x:p[0]+40+(m*43%(Math.max(80,p[2]-80))),
+
             platformIndex:pi,
+
+            x:
+                p[0]+
+                60+
+                ((m*73+n*31)%
+                Math.max(80,p[2]-120)),
+
             type:type
         });
     }
 
+
     levels.push({
-        name:themes[Math.floor(n/5)][2],
-        sky1:themes[Math.floor(n/5)][0],
-        sky2:themes[Math.floor(n/5)][1],
+
+        name:
+            themes[
+                Math.floor(n/5)
+            ][2],
+
+        sky1:
+            themes[
+                Math.floor(n/5)
+            ][0],
+
+        sky2:
+            themes[
+                Math.floor(n/5)
+            ][1],
+
         platforms,
         coins,
         monsters,
-        boss:n===9||n===19
+
+        boss:
+            n===9||
+            n===19
     });
 }
 
 
 // =====================================================
-// GAME VARIABLES
+// GAME STATE
 // =====================================================
+
+let screen="start";
 
 let level=0;
 
@@ -400,33 +508,110 @@ let message="";
 let messageTimer=0;
 
 let player;
+
 let coins=[];
 let enemies=[];
-let portal=null;
 
+let portal=null;
 let shop=null;
 let shopOpen=false;
 let nearShop=false;
+
+let shopItems=[];
 
 let swordDamage=3;
 let swordRarity="COMMON";
 
 let shieldCount=0;
 
-let doubleCoinsCount=0;
-let doubleCoinsTimer=0;
+let doubleCoins=0;
 
-let jumpBoost=0;
-let speedBoost=0;
+let speedRun=false;
+let speedRunStart=0;
+let speedRunTime=0;
 
 let purchasedPermanent=new Set();
 
+let lastTime=performance.now();
+
 
 // =====================================================
-// SHOP
+// SWORD DATA
+// =====================================================
+
+const weaponPool=[
+
+    {
+        id:"uncommon",
+        name:"UNCOMMON SWORD",
+        damage:5,
+        rarity:"UNCOMMON",
+        chance:39,
+        price:25
+    },
+
+    {
+        id:"rare",
+        name:"RARE SWORD",
+        damage:7,
+        rarity:"RARE",
+        chance:25,
+        price:45
+    },
+
+    {
+        id:"epic",
+        name:"EPIC SWORD",
+        damage:10,
+        rarity:"EPIC",
+        chance:20,
+        price:70
+    },
+
+    {
+        id:"legendary",
+        name:"LEGENDARY SWORD",
+        damage:12,
+        rarity:"LEGENDARY",
+        chance:10,
+        price:110
+    },
+
+    {
+        id:"mythic",
+        name:"MYTHIC SWORD",
+        damage:15,
+        rarity:"MYTHIC",
+        chance:5,
+        price:160
+    },
+
+    {
+        id:"secret",
+        name:"SECRET SWORD",
+        damage:20,
+        rarity:"SECRET",
+        chance:.9,
+        price:250
+    },
+
+    {
+        id:"eternal",
+        name:"ETERNAL SWORD",
+        damage:40,
+        rarity:"???",
+        chance:.1,
+        price:500
+    }
+];
+
+
+// =====================================================
+// SHOP ITEMS
 // =====================================================
 
 const shopPool=[
+
     {
         id:"life",
         name:"❤️ +1 LIFE",
@@ -434,6 +619,7 @@ const shopPool=[
         description:"Gain another life.",
         repeat:true
     },
+
     {
         id:"heal",
         name:"💚 HEAL 10 HP",
@@ -441,20 +627,23 @@ const shopPool=[
         description:"Restore 10 HP.",
         repeat:true
     },
+
     {
         id:"shield",
         name:"🛡 SHIELD",
-        price:30,
-        description:"Block one monster hit.",
+        price:20,
+        description:"Block the next hit.",
         repeat:true
     },
+
     {
-        id:"doubleCoins",
+        id:"double",
         name:"🪙 2X COINS",
-        price:35,
+        price:25,
         description:"2X coins for 60 seconds.",
         repeat:true
     },
+
     {
         id:"jump",
         name:"🦘 JUMP BOOST",
@@ -462,6 +651,7 @@ const shopPool=[
         description:"Jump higher.",
         repeat:false
     },
+
     {
         id:"speed",
         name:"💨 SPEED BOOST",
@@ -469,82 +659,23 @@ const shopPool=[
         description:"Run faster.",
         repeat:false
     },
+
     {
         id:"strength",
         name:"💪 STRENGTH",
         price:20,
-        description:"+2 sword damage.",
+        description:"Increase sword damage.",
         repeat:false
     },
+
     {
         id:"maxhp",
         name:"❤️ MAX HP +10",
         price:25,
-        description:"+10 maximum HP.",
+        description:"Increase maximum HP.",
         repeat:false
     }
 ];
-
-const weaponPool=[
-    {
-        id:"uncommon",
-        name:"🗡 UNCOMMON",
-        price:25,
-        damage:5,
-        rarity:"UNCOMMON",
-        chance:.39
-    },
-    {
-        id:"rare",
-        name:"🗡 RARE",
-        price:45,
-        damage:7,
-        rarity:"RARE",
-        chance:.25
-    },
-    {
-        id:"epic",
-        name:"🗡 EPIC",
-        price:70,
-        damage:10,
-        rarity:"EPIC",
-        chance:.20
-    },
-    {
-        id:"legendary",
-        name:"🗡 LEGENDARY",
-        price:110,
-        damage:12,
-        rarity:"LEGENDARY",
-        chance:.10
-    },
-    {
-        id:"mythic",
-        name:"🗡 MYTHIC",
-        price:160,
-        damage:15,
-        rarity:"MYTHIC",
-        chance:.05
-    },
-    {
-        id:"secret",
-        name:"🗡 SECRET",
-        price:230,
-        damage:20,
-        rarity:"SECRET",
-        chance:.009
-    },
-    {
-        id:"eternal",
-        name:"🗡 ETERNAL",
-        price:500,
-        damage:40,
-        rarity:"???",
-        chance:.001
-    }
-];
-
-let shopItems=[];
 
 
 // =====================================================
@@ -553,8 +684,9 @@ let shopItems=[];
 
 function monsterStats(type){
 
-    if(type===1)
-        return {
+    if(type===1){
+
+        return{
             hp:5,
             damage:5,
             rate:.75,
@@ -564,9 +696,11 @@ function monsterStats(type){
             speed:2.4,
             coins:2
         };
+    }
 
-    if(type===2)
-        return {
+    if(type===2){
+
+        return{
             hp:10,
             damage:7,
             rate:1,
@@ -576,9 +710,11 @@ function monsterStats(type){
             speed:2.2,
             coins:3
         };
+    }
 
-    if(type===3)
-        return {
+    if(type===3){
+
+        return{
             hp:15,
             damage:10,
             rate:1.5,
@@ -588,8 +724,10 @@ function monsterStats(type){
             speed:2,
             coins:4
         };
+    }
 
-    return {
+    return{
+
         hp:20,
         damage:15,
         rate:2,
@@ -606,11 +744,22 @@ function monsterStats(type){
 // START GAME
 // =====================================================
 
-function startGame(isSpeedRun){
+function startGame(run){
 
-    speedRun=isSpeedRun;
+    screen="game";
+
+    speedRun=run;
+
+    speedRunStart=
+        performance.now();
+
+    speedRunTime=0;
+
+    gameOver=false;
+    gameWon=false;
 
     level=0;
+
     score=0;
     totalCoins=0;
     monstersKilled=0;
@@ -621,30 +770,9 @@ function startGame(isSpeedRun){
     swordRarity="COMMON";
 
     shieldCount=0;
-
-    doubleCoinsCount=0;
-    doubleCoinsTimer=0;
-
-    jumpBoost=0;
-    speedBoost=0;
+    doubleCoins=0;
 
     purchasedPermanent.clear();
-
-    camera=0;
-
-    gameOver=false;
-    gameWon=false;
-
-    shopOpen=false;
-
-    screen="game";
-
-    speedRunStart=
-        speedRun
-        ?performance.now()
-        :0;
-
-    speedRunEnd=0;
 
     loadLevel(0);
 }
@@ -662,64 +790,101 @@ function loadLevel(n){
 
     const L=levels[level];
 
+
     const maxHP=
         20+
         level*10;
 
+
     player={
+
         x:80,
-        y:250,
+        y:L.platforms[0][1]-48,
+
         width:34,
         height:48,
+
         vx:0,
         vy:0,
-        speed:7+speedBoost,
-        jumpPower:-13-jumpBoost,
+
+        speed:7,
+
+        jumpPower:-13,
+
         ground:false,
+
         maxHP:maxHP,
         hp:maxHP,
+
         attackCooldown:0,
         attacking:false,
         attackTimer:0
     };
 
+
     coins=L.coins.map(c=>({
+
         x:c[0],
         y:c[1],
+
         collected:false
     }));
 
+
     enemies=[];
+
 
     for(const data of L.monsters){
 
-        const s=monsterStats(data.type);
-        const p=L.platforms[data.platformIndex];
+        const s=
+            monsterStats(
+                data.type
+            );
+
+        const p=
+            L.platforms[
+                data.platformIndex
+            ];
+
 
         enemies.push({
-            x:Math.max(
-                p[0]+5,
-                Math.min(
-                    data.x,
-                    p[0]+p[2]-s.width-5
-                )
-            ),
-            y:p[1]-s.height,
+
+            x:
+                Math.max(
+                    p[0]+10,
+                    Math.min(
+                        data.x,
+                        p[0]+p[2]-s.width-10
+                    )
+                ),
+
+            y:
+                p[1]-s.height,
+
             width:s.width,
             height:s.height,
+
             type:data.type,
+
             hp:s.hp,
             maxHP:s.hp,
+
             damage:s.damage,
             rate:s.rate,
             speed:s.speed,
+            coinReward:s.coins,
+
             color:s.color,
-            coins:s.coins,
+
             vx:0,
             vy:0,
+
             ground:true,
+
             active:false,
+
             attackTimer:0,
+
             dead:false,
             boss:false
         });
@@ -732,35 +897,85 @@ function loadLevel(n){
 
     if(L.boss){
 
-        const final=L.platforms[L.platforms.length-1];
-        const solar=level===19;
+        const final=
+            L.platforms[
+                L.platforms.length-1
+            ];
 
-        const bw=solar?204:170;
-        const bh=solar?288:240;
+
+        const solar=
+            level===19;
+
+
+        const bw=
+            solar
+            ?204
+            :170;
+
+        const bh=
+            solar
+            ?288
+            :240;
+
 
         enemies.push({
-            x:final[0]+final[2]-bw-70,
-            y:final[1]-bh,
+
+            x:
+                final[0]+
+                final[2]-
+                bw-
+                120,
+
+            y:
+                final[1]-bh,
+
             width:bw,
             height:bh,
 
-            hp:solar?50:35,
-            maxHP:solar?50:35,
+            hp:
+                solar
+                ?50
+                :35,
 
-            damage:solar?30:20,
-            rate:solar?3.5:3,
+            maxHP:
+                solar
+                ?50
+                :35,
+
+            damage:
+                solar
+                ?30
+                :20,
+
+            rate:
+                solar
+                ?3.5
+                :3,
 
             boss:true,
-            bossName:solar?"THE SOLAR":"THE OMEGA",
+
+            bossName:
+                solar
+                ?"The Solar"
+                :"The Omega",
+
+            bossCoins:
+                solar
+                ?20
+                :10,
 
             active:false,
+
             attackTimer:0,
+
             warning:false,
             warningTimer:0,
 
             vx:0,
             vy:0,
+
             ground:true,
+
             dead:false
         });
     }
@@ -770,25 +985,40 @@ function loadLevel(n){
     // PORTAL
     // =================================================
 
-    const final=L.platforms[L.platforms.length-1];
+    const final=
+        L.platforms[
+            L.platforms.length-1
+        ];
+
 
     portal={
-        x:final[0]+final[2]-90,
-        y:final[1]-75,
+
+        x:
+            final[0]+
+            final[2]-90,
+
+        y:
+            final[1]-75,
+
         width:50,
         height:75
     };
 
 
     // =================================================
-    // SHOP EVERY 5 LEVELS
+    // SHOP
     // =================================================
 
     if((level+1)%5===0){
 
         shop={
-            x:final[0]+190,
-            y:final[1]-70,
+
+            x:
+                final[0]+190,
+
+            y:
+                final[1]-70,
+
             width:70,
             height:70
         };
@@ -796,177 +1026,266 @@ function loadLevel(n){
         createShop();
 
     }else{
+
         shop=null;
         shopItems=[];
     }
 
+
     camera=0;
+
 
     message=
         L.boss
         ?"⚠ "+(level===19?"THE SOLAR":"THE OMEGA")+"!"
-        :L.name+" — LEVEL "+(level+1);
+        :L.name+
+         " — LEVEL "+
+         (level+1);
+
 
     messageTimer=100;
 }
 
 
 // =====================================================
-// SHOP ROLL
+// SHOP CREATION
 // =====================================================
 
 function createShop(){
 
     shopItems=[];
 
-    // The shop contains exactly 3 slots.
-    // Bought items NEVER refill the current shop.
 
-    const available=[
-        ...shopPool,
-        ...weaponPool
-    ].filter(item=>{
-        if(!item.repeat &&
-           purchasedPermanent.has(item.id))
-            return false;
+    // Normal items.
 
-        return true;
-    });
+    const normal=
+        shopPool.filter(item=>{
 
-
-    // Weapon chances are weighted independently.
-    // Only ONE weapon can appear in a shop.
-
-    const weapons=available.filter(x=>x.damage);
-    const nonWeapons=available.filter(x=>!x.damage);
-
-    if(weapons.length){
-
-        const roll=Math.random();
-
-        let total=0;
-        let chosen=null;
-
-        for(const weapon of weapons){
-
-            total+=weapon.chance;
-
-            if(roll<total){
-                chosen=weapon;
-                break;
-            }
-        }
-
-        // If the roll misses the tiny weapon probabilities,
-        // no weapon is forced into the shop.
-
-        if(chosen)
-            shopItems.push(chosen);
-    }
-
-
-    // Fill remaining slots with regular shop items.
-
-    const shuffled=[...nonWeapons]
-        .sort(()=>Math.random()-.5);
-
-    for(const item of shuffled){
-
-        if(shopItems.length>=3)
-            break;
-
-        if(
-            !shopItems.some(
-                x=>x.id===item.id
+            if(
+                !item.repeat &&
+                purchasedPermanent.has(item.id)
             )
-        )
-            shopItems.push(item);
+                return false;
+
+            return true;
+        });
+
+
+    // Add up to 2 normal items.
+
+    const availableNormal=
+        [...normal];
+
+
+    while(
+        shopItems.length<2 &&
+        availableNormal.length
+    ){
+
+        const index=
+            Math.floor(
+                Math.random()*
+                availableNormal.length
+            );
+
+        shopItems.push(
+            availableNormal[index]
+        );
+
+        availableNormal.splice(
+            index,
+            1
+        );
     }
 
 
-    // Shuffle the three slots.
+    // =================================================
+    // ONE RANDOM SWORD
+    // =================================================
+    //
+    // Weighted chances:
+    //
+    // Uncommon 39
+    // Rare 25
+    // Epic 20
+    // Legendary 10
+    // Mythic 5
+    // Secret .9
+    // Eternal .1
+    //
+    // Total = 100
+    //
+    // ONLY ONE sword can appear per shop.
 
-    shopItems.sort(
-        ()=>Math.random()-.5
-    );
+    const sword=
+        getRandomSword();
+
+
+    if(sword)
+        shopItems.push(sword);
 }
 
 
 // =====================================================
-// SHOP UI
+// RANDOM SWORD
+// =====================================================
+
+function getRandomSword(){
+
+    const roll=
+        Math.random()*100;
+
+    let total=0;
+
+    for(const sword of weaponPool){
+
+        total+=sword.chance;
+
+        if(roll<total){
+
+            // Don't replace current sword
+            // with something weaker.
+
+            if(
+                sword.damage<=swordDamage
+            ){
+
+                return null;
+            }
+
+            return sword;
+        }
+    }
+
+    return null;
+}
+
+
+// =====================================================
+// SHOP BUTTON
 // =====================================================
 
 function getShopOpenButton(){
-    return {
+
+    return{
+
         x:W/2-115,
         y:H-155,
+
         w:230,
         h:60
     };
 }
 
+
+// =====================================================
+// SHOP TOUCH
+// =====================================================
+
 function handleShopTouch(p){
 
-    if(!shopOpen)return;
+    if(!shopOpen)
+        return;
 
-    const cardW=Math.min(200,(W-50)/3);
+
+    const cardW=
+        Math.min(
+            200,
+            (W-50)/3
+        );
+
     const gap=10;
-    const total=cardW*3+gap*2;
-    const start=W/2-total/2;
 
-    for(let i=0;i<shopItems.length;i++){
+    const total=
+        cardW*3+
+        gap*2;
 
-        const x=start+i*(cardW+gap);
+    const start=
+        W/2-total/2;
+
+
+    for(
+        let i=0;
+        i<shopItems.length;
+        i++
+    ){
+
+        const x=
+            start+
+            i*(cardW+gap);
+
         const y=145;
 
-        const buy={
+
+        const buyBox={
+
             x:x+10,
             y:y+170,
+
             w:cardW-20,
             h:55
         };
 
-        if(inside(p,buy)){
+
+        if(inside(p,buyBox)){
+
             buyShopItem(i);
             return;
         }
     }
 
+
     const close={
+
         x:W/2-85,
         y:H-90,
+
         w:170,
         h:55
     };
 
-    if(inside(p,close))
+
+    if(inside(p,close)){
+
         shopOpen=false;
+    }
 }
 
 
 // =====================================================
-// BUY ITEM
+// BUY SHOP ITEM
 // =====================================================
 
 function buyShopItem(index){
 
-    const item=shopItems[index];
+    const item=
+        shopItems[index];
 
-    if(!item)return;
+    if(!item)
+        return;
+
 
     if(score<item.price){
-        message="❌ NOT ENOUGH COINS!";
+
+        message=
+            "❌ NOT ENOUGH COINS!";
+
         messageTimer=55;
+
         return;
     }
+
 
     score-=item.price;
 
 
     if(item.id==="life"){
+
         lives++;
+
         message="❤️ +1 LIFE!";
     }
+
 
     else if(item.id==="heal"){
 
@@ -974,51 +1293,63 @@ function buyShopItem(index){
 
             score+=item.price;
 
-            message="❤️ HP IS ALREADY FULL!";
+            message=
+                "❤️ HP IS ALREADY FULL!";
+
             messageTimer=55;
+
             return;
         }
 
-        player.hp=Math.min(
-            player.maxHP,
-            player.hp+10
-        );
+        player.hp=
+            Math.min(
+                player.maxHP,
+                player.hp+10
+            );
 
         message="💚 +10 HP!";
     }
 
+
     else if(item.id==="shield"){
+
         shieldCount++;
-        message="🛡 SHIELD +1!";
+
+        message=
+            "🛡 SHIELD ADDED!";
     }
 
-    else if(item.id==="doubleCoins"){
 
-        doubleCoinsCount++;
+    else if(item.id==="double"){
 
-        // Each purchase adds another minute.
-        doubleCoinsTimer+=60;
+        // Each purchase adds another 60 seconds.
 
-        message="🪙 2X COINS FOR 60 SECONDS!";
+        doubleCoins+=60;
+
+        message=
+            "🪙 2X COINS FOR 60 SECONDS!";
     }
+
 
     else if(item.id==="jump"){
 
-        jumpBoost+=1.5;
+        player.jumpPower-=1.5;
 
         purchasedPermanent.add(item.id);
 
         message="🦘 JUMP BOOST!";
     }
 
+
     else if(item.id==="speed"){
 
-        speedBoost+=1;
+        player.speed+=1;
 
         purchasedPermanent.add(item.id);
 
         message="💨 SPEED BOOST!";
     }
+
 
     else if(item.id==="strength"){
 
@@ -1026,8 +1357,9 @@ function buyShopItem(index){
 
         purchasedPermanent.add(item.id);
 
-        message="💪 STRENGTH +2!";
+        message="💪 STRENGTH UP!";
     }
+
 
     else if(item.id==="maxhp"){
 
@@ -1039,30 +1371,32 @@ function buyShopItem(index){
         message="❤️ MAX HP +10!";
     }
 
+
     else if(item.damage){
 
-        if(item.damage>swordDamage){
+        swordDamage=item.damage;
 
-            swordDamage=item.damage;
-            swordRarity=item.rarity;
+        swordRarity=item.rarity;
 
-            message=
-                "⚔ "+item.rarity+
-                " SWORD!";
-        }else{
-            message=
-                "⚔ "+item.rarity+
-                " SWORD!";
-        }
+        message=
+            "⚔ "+item.name+"!";
 
         purchasedPermanent.add(item.id);
     }
 
+
     messageTimer=70;
 
+
     // IMPORTANT:
-    // The slot disappears and does NOT refill.
-    shopItems.splice(index,1);
+    //
+    // The item is removed permanently from THIS shop.
+    // The shop does NOT refill.
+
+    shopItems.splice(
+        index,
+        1
+    );
 }
 
 
@@ -1071,22 +1405,28 @@ function buyShopItem(index){
 // =====================================================
 
 function collision(a,b){
-    return a.x<b.x+b.width &&
-           a.x+a.width>b.x &&
-           a.y<b.y+b.height &&
-           a.y+a.height>b.y;
+
+    return(
+
+        a.x<b.x+b.width &&
+        a.x+a.width>b.x &&
+        a.y<b.y+b.height &&
+        a.y+a.height>b.y
+    );
 }
 
 
 // =====================================================
-// PHYSICS
+// MOVE ENTITY
 // =====================================================
 
 function moveEntity(e,platforms){
 
     e.vy+=.65;
 
-    if(e.vy>17)e.vy=17;
+    if(e.vy>17)
+        e.vy=17;
+
 
     const oldY=e.y;
 
@@ -1095,32 +1435,51 @@ function moveEntity(e,platforms){
 
     e.ground=false;
 
+
     for(const p of platforms){
 
         const plat={
+
             x:p[0],
             y:p[1],
+
             width:p[2],
             height:p[3]
         };
 
+
         if(!collision(e,plat))
             continue;
 
-        const oldBottom=oldY+e.height;
-        const newBottom=e.y+e.height;
+
+        const oldBottom=
+            oldY+e.height;
+
+        const newBottom=
+            e.y+e.height;
+
 
         if(
             e.vy>=0 &&
-            oldBottom<=plat.y+12 &&
+            oldBottom<=plat.y+15 &&
             newBottom>=plat.y
         ){
-            e.y=plat.y-e.height;
+
+            e.y=
+                plat.y-e.height;
+
             e.vy=0;
+
             e.ground=true;
         }
+
+
         else if(e.vy<0){
-            e.y=plat.y+plat.height;
+
+            e.y=
+                plat.y+
+                plat.height;
+
             e.vy=0;
         }
     }
@@ -1128,7 +1487,7 @@ function moveEntity(e,platforms){
 
 
 // =====================================================
-// PLATFORM UNDER ENTITY
+// PLATFORM BELOW
 // =====================================================
 
 function platformBelow(e,platforms){
@@ -1142,69 +1501,99 @@ function platformBelow(e,platforms){
             e.x+e.width>p[0] &&
             e.x<p[0]+p[2];
 
-        if(!overlap)continue;
+
+        if(!overlap)
+            continue;
+
 
         const d=
-            p[1]-(e.y+e.height);
+            p[1]-
+            (e.y+e.height);
 
-        if(d>=-10&&d<closest){
+
+        if(
+            d>=-12 &&
+            d<closest
+        ){
+
             closest=d;
             result=p;
         }
     }
+
 
     return result;
 }
 
 
 // =====================================================
-// PLAYER DAMAGE
+// DAMAGE PLAYER
 // =====================================================
 
 function damagePlayer(amount){
 
-    if(screen!=="game")return;
+    if(gameOver||gameWon)
+        return;
 
-    // Shield blocks one hit.
+
+    // Shield blocks ONE hit.
+
     if(shieldCount>0){
 
         shieldCount--;
 
-        message="🛡 SHIELD BLOCKED THE HIT!";
-        messageTimer=45;
+        message=
+            "🛡 SHIELD BLOCKED THE ATTACK!";
+
+        messageTimer=55;
 
         return;
     }
 
+
     player.hp-=amount;
+
 
     if(player.hp<=0){
 
         lives--;
 
+
         if(lives<=0){
 
             gameOver=true;
-            screen="gameover";
 
-            if(speedRun)
-                speedRunEnd=performance.now();
+            if(speedRun){
+
+                speedRunTime=
+                    (performance.now()-
+                    speedRunStart)/1000;
+            }
 
             return;
         }
 
-        // Respawn at beginning of current level.
+
+        // Respawn at beginning
+        // of CURRENT LEVEL.
+
         player.x=80;
-        player.y=250;
+
+        player.y=
+            levels[level].platforms[0][1]-
+            player.height;
+
         player.vx=0;
         player.vy=0;
 
-        // Full HP after respawn.
-        player.hp=player.maxHP;
+        player.hp=
+            player.maxHP;
 
         camera=0;
 
-        message="💥 RESPAWN!";
+        message=
+            "💥 RESPAWN!";
+
         messageTimer=80;
     }
 }
@@ -1216,64 +1605,99 @@ function damagePlayer(amount){
 
 function attack(){
 
-    if(screen!=="game")return;
+    if(gameOver||gameWon||screen!=="game")
+        return;
 
-    // 0.5 second attack speed.
-    if(player.attackCooldown>0)return;
+
+    // 0.5 second attack cooldown.
+
+    if(player.attackCooldown>0)
+        return;
+
 
     player.attackCooldown=.5;
 
     player.attacking=true;
+
     player.attackTimer=.22;
 
+
     const facing=
-        player.vx<0?-1:1;
+        player.vx<0
+        ?-1
+        :1;
+
 
     for(const enemy of enemies){
 
-        if(enemy.dead)continue;
+        if(enemy.dead)
+            continue;
 
-        const dx=enemy.x-player.x;
-        const dy=Math.abs(enemy.y-player.y);
+
+        const dx=
+            enemy.x-player.x;
+
+        const dy=
+            Math.abs(
+                enemy.y-player.y
+            );
+
 
         const inFront=
             dx*facing>=-25 &&
             dx*facing<=125;
 
-        if(inFront&&dy<140){
+
+        if(
+            inFront &&
+            dy<140
+        ){
 
             enemy.hp-=swordDamage;
+
 
             if(enemy.hp<=0){
 
                 enemy.dead=true;
+
                 monstersKilled++;
 
-                // Boss coin rewards.
-                let reward=1;
+
+                let reward=0;
+
 
                 if(enemy.boss){
+
                     reward=
-                        enemy.bossName==="THE SOLAR"
-                        ?20
-                        :10;
+                        enemy.bossCoins;
+
                 }else{
-                    reward=enemy.coins;
+
+                    reward=
+                        enemy.coinReward;
                 }
 
-                const multiplier=
-                    doubleCoinsTimer>0?2:1;
 
-                const coinsEarned=
-                    reward*multiplier;
+                if(doubleCoins>0)
+                    reward*=2;
 
-                score+=coinsEarned;
-                totalCoins+=coinsEarned;
+
+                score+=reward;
+                totalCoins+=reward;
+
 
                 message=
-                    "+"+coinsEarned+" COINS!";
+                    enemy.boss
+                    ?"🏆 "+enemy.bossName+
+                     " DEFEATED! +"+
+                     reward+
+                     " COINS!"
+                    :"+"+
+                     reward+
+                     " COINS!";
 
-                messageTimer=40;
+
+                messageTimer=60;
             }
         }
     }
@@ -1286,7 +1710,8 @@ function attack(){
 
 function updateEnemy(e,L,dt){
 
-    if(e.dead)return;
+    if(e.dead)
+        return;
 
 
     // =================================================
@@ -1295,15 +1720,22 @@ function updateEnemy(e,L,dt){
 
     if(e.boss){
 
-        if(Math.abs(player.x-e.x)<850)
+        if(
+            Math.abs(
+                player.x-e.x
+            )<750
+        ){
+
             e.active=true;
+        }
 
-        if(!e.active)return;
 
-        // Boss stays in front of portal.
-        e.vx=0;
+        if(!e.active)
+            return;
+
 
         e.attackTimer+=dt;
+
 
         if(
             e.attackTimer>=e.rate &&
@@ -1311,89 +1743,265 @@ function updateEnemy(e,L,dt){
         ){
 
             e.attackTimer=0;
+
             e.warning=true;
+
             e.warningTimer=.5;
         }
+
 
         if(e.warning){
 
             e.warningTimer-=dt;
 
-            if(e.warningTimer<=0){
+
+            if(
+                e.warningTimer<=0
+            ){
 
                 e.warning=false;
 
-                const center=e.x+e.width/2;
-                const pc=player.x+player.width/2;
+
+                const center=
+                    e.x+
+                    e.width/2;
+
+                const pc=
+                    player.x+
+                    player.width/2;
+
+
+                // Boss only attacks directly
+                // in front of itself.
 
                 if(
-                    Math.abs(pc-center)<
+                    Math.abs(
+                        pc-center
+                    )<
                     e.width/2+120
                 ){
-                    damagePlayer(e.damage);
+
+                    damagePlayer(
+                        e.damage
+                    );
                 }
             }
         }
 
+
         return;
     }
 
 
     // =================================================
-    // NORMAL MONSTER
+    // NORMAL MONSTERS
     // =================================================
 
-    // Void monsters are permanently removed.
-    if(e.y>H+700){
+    // Remove monsters that fell
+    // into the void.
+
+    if(
+        e.y>
+        H+700
+    ){
+
         e.dead=true;
         return;
     }
 
-    const dx=player.x-e.x;
-    const distance=Math.abs(dx);
 
-    if(!e.active&&distance<600)
-        e.active=true;
+    // =================================================
+    // DETERMINE PLATFORMS
+    // =================================================
 
-    if(!e.active)return;
+    const monsterPlatform=
+        platformBelow(
+            e,
+            L.platforms
+        );
 
-    if(distance>1000){
+
+    const playerPlatform=
+        platformBelow(
+            player,
+            L.platforms
+        );
+
+
+    // =================================================
+    // SAME PLATFORM DETECTION
+    // =================================================
+
+    let samePlatform=false;
+
+
+    if(
+        monsterPlatform &&
+        playerPlatform
+    ){
+
+        samePlatform=
+            monsterPlatform===
+            playerPlatform;
+
+
+        // Make sure both are actually
+        // above the same platform.
+
+        if(
+            player.x+player.width<
+            monsterPlatform[0] ||
+
+            player.x>
+            monsterPlatform[0]+
+            monsterPlatform[2]
+        ){
+
+            samePlatform=false;
+        }
+    }
+
+
+    // =================================================
+    // DIFFERENT PLATFORM = NO SIGHT
+    // =================================================
+
+    if(!samePlatform){
+
         e.active=false;
+
         e.vx=0;
+
+        e.attackTimer=0;
+
         return;
     }
 
-    const dir=dx>0?1:-1;
 
-    e.vx=dir*e.speed;
+    // =================================================
+    // SAME PLATFORM = CHASE
+    // =================================================
 
-    const mp=platformBelow(e,L.platforms);
-    const pp=platformBelow(player,L.platforms);
+    e.active=true;
 
-    // Jump toward higher platform.
+
+    const dx=
+        player.x-e.x;
+
+
+    const distance=
+        Math.abs(dx);
+
+
+    if(distance>900){
+
+        e.active=false;
+        e.vx=0;
+        e.attackTimer=0;
+
+        return;
+    }
+
+
+    const dir=
+        dx>0
+        ?1
+        :-1;
+
+
+    e.vx=
+        dir*
+        e.speed;
+
+
+    // =================================================
+    // JUMP UP
+    // =================================================
+
     if(
         e.ground &&
-        mp &&
-        pp &&
-        pp[1]<mp[1]-25
+        monsterPlatform &&
+        playerPlatform &&
+        playerPlatform[1]<
+        monsterPlatform[1]-25
     ){
+
         e.vy=-12;
     }
 
-    moveEntity(e,L.platforms);
 
-    // Only attack while physically touching.
-    if(collision(player,e)){
+    // =================================================
+    // PHYSICS
+    // =================================================
+
+    moveEntity(
+        e,
+        L.platforms
+    );
+
+
+    // =================================================
+    // ATTACK
+    // =================================================
+
+    const newMonsterPlatform=
+        platformBelow(
+            e,
+            L.platforms
+        );
+
+
+    const newPlayerPlatform=
+        platformBelow(
+            player,
+            L.platforms
+        );
+
+
+    // If the monster is no longer on
+    // the player's platform, immediately
+    // stop its attack.
+
+    if(
+        newMonsterPlatform===
+        null ||
+        newMonsterPlatform!==
+        newPlayerPlatform
+    ){
+
+        e.active=false;
+
+        e.vx=0;
+
+        e.attackTimer=0;
+
+        return;
+    }
+
+
+    if(
+        collision(
+            player,
+            e
+        )
+    ){
 
         e.attackTimer+=dt;
 
-        if(e.attackTimer>=e.rate){
+
+        if(
+            e.attackTimer>=e.rate
+        ){
 
             e.attackTimer=0;
-            damagePlayer(e.damage);
+
+            damagePlayer(
+                e.damage
+            );
         }
 
     }else{
+
         e.attackTimer=0;
     }
 }
@@ -1403,176 +2011,358 @@ function updateEnemy(e,L,dt){
 // UPDATE
 // =====================================================
 
-let lastTime=performance.now();
-
 function update(){
 
-    const now=performance.now();
+    const now=
+        performance.now();
 
-    let dt=(now-lastTime)/1000;
+
+    let dt=
+        (now-lastTime)/1000;
+
+
     lastTime=now;
 
-    dt=Math.min(dt,.05);
 
-    if(screen!=="game")return;
-
-    if(shopOpen)return;
-
-    const L=levels[level];
+    dt=
+        Math.min(dt,.05);
 
 
-    // 2X COINS TIMER.
-    if(doubleCoinsTimer>0){
+    if(screen!=="game")
+        return;
 
-        doubleCoinsTimer-=dt;
 
-        if(doubleCoinsTimer<=0){
-            doubleCoinsTimer=0;
-            doubleCoinsCount=0;
-        }
+    if(gameOver||gameWon)
+        return;
+
+
+    // =================================================
+    // SPEED RUN TIMER
+    // =================================================
+
+    if(speedRun){
+
+        speedRunTime=
+            (now-speedRunStart)/1000;
     }
 
+
+    // =================================================
+    // 2X COIN TIMER
+    // =================================================
+
+    if(doubleCoins>0){
+
+        doubleCoins-=dt;
+
+        if(doubleCoins<0)
+            doubleCoins=0;
+    }
+
+
+    // SHOP PAUSE
+
+    if(shopOpen)
+        return;
+
+
+    const L=
+        levels[level];
+
+
+    // =================================================
+    // SHOP DISTANCE
+    // =================================================
 
     nearShop=false;
 
+
     if(shop){
 
-        const dx=Math.abs(player.x-shop.x);
-        const dy=Math.abs(player.y-shop.y);
+        const dx=
+            Math.abs(
+                player.x-shop.x
+            );
 
-        nearShop=dx<180&&dy<160;
+        const dy=
+            Math.abs(
+                player.y-shop.y
+            );
+
+
+        nearShop=
+            dx<170 &&
+            dy<150;
     }
 
 
-    const left=keyLeft||touchLeft;
-    const right=keyRight||touchRight;
-    const jump=keyJump||touchJump;
-    const attacking=keyAttack||touchAttack;
+    // =================================================
+    // CONTROLS
+    // =================================================
+
+    const left=
+        keyLeft||
+        touchLeft;
+
+    const right=
+        keyRight||
+        touchRight;
+
+    const jump=
+        keyJump||
+        touchJump;
+
+    const attacking=
+        keyAttack||
+        touchAttack;
 
 
-    if(left)player.vx-=.8;
-    if(right)player.vx+=.8;
+    // =================================================
+    // MOVEMENT
+    // =================================================
+
+    if(left)
+        player.vx-=.8;
+
+    if(right)
+        player.vx+=.8;
+
 
     if(!left&&!right)
         player.vx*=.82;
 
-    player.vx=Math.max(
-        -player.speed,
-        Math.min(player.speed,player.vx)
-    );
+
+    player.vx=
+        Math.max(
+            -player.speed,
+            Math.min(
+                player.speed,
+                player.vx
+            )
+        );
 
 
-    if(jump&&player.ground){
+    // =================================================
+    // JUMP
+    // =================================================
 
-        player.vy=player.jumpPower;
+    if(
+        jump &&
+        player.ground
+    ){
+
+        player.vy=
+            player.jumpPower;
+
         player.ground=false;
     }
 
+
+    // =================================================
+    // ATTACK
+    // =================================================
 
     if(attacking)
         attack();
 
 
     if(player.attackCooldown>0){
+
         player.attackCooldown-=dt;
 
         if(player.attackCooldown<0)
             player.attackCooldown=0;
     }
 
+
     if(player.attacking){
 
         player.attackTimer-=dt;
 
-        if(player.attackTimer<=0)
+        if(player.attackTimer<=0){
+
             player.attacking=false;
+        }
     }
 
 
-    moveEntity(player,L.platforms);
+    // =================================================
+    // PLAYER PHYSICS
+    // =================================================
 
-    player.x=Math.max(0,player.x);
+    moveEntity(
+        player,
+        L.platforms
+    );
 
 
+    player.x=
+        Math.max(
+            0,
+            player.x
+        );
+
+
+    // =================================================
     // COINS
+    // =================================================
+
     for(const c of coins){
 
-        if(c.collected)continue;
+        if(c.collected)
+            continue;
 
-        const d=Math.hypot(
-            player.x+player.width/2-c.x,
-            player.y+player.height/2-c.y
-        );
+
+        const d=
+            Math.hypot(
+
+                player.x+
+                player.width/2-
+                c.x,
+
+                player.y+
+                player.height/2-
+                c.y
+            );
+
 
         if(d<35){
 
             c.collected=true;
 
-            const amount=
-                doubleCoinsTimer>0?2:1;
 
-            score+=amount;
-            totalCoins+=amount;
+            let reward=1;
 
-            message="+"+amount+" COIN!";
+
+            if(doubleCoins>0)
+                reward=2;
+
+
+            score+=reward;
+            totalCoins+=reward;
+
+
+            message=
+                "+"+
+                reward+
+                " COIN"+
+                (reward>1?"S":"")+"!";
+
+
             messageTimer=30;
         }
     }
 
 
+    // =================================================
     // ENEMIES
-    for(const e of enemies)
-        updateEnemy(e,L,dt);
+    // =================================================
 
-    enemies=enemies.filter(e=>!e.dead);
+    for(const e of enemies){
+
+        updateEnemy(
+            e,
+            L,
+            dt
+        );
+    }
 
 
+    enemies=
+        enemies.filter(
+            e=>!e.dead
+        );
+
+
+    // =================================================
     // PORTAL
+    // =================================================
+
     const bossAlive=
-        enemies.some(e=>e.boss);
+        enemies.some(
+            e=>e.boss
+        );
+
 
     if(
-        collision(player,portal)&&
+        portal &&
+        collision(
+            player,
+            portal
+        ) &&
         !bossAlive
     ){
 
         if(level<19){
 
-            loadLevel(level+1);
+            loadLevel(
+                level+1
+            );
 
         }else{
 
             gameWon=true;
-            screen="won";
 
-            if(speedRun)
-                speedRunEnd=performance.now();
+            if(speedRun){
+
+                speedRunTime=
+                    (performance.now()-
+                    speedRunStart)/1000;
+            }
         }
     }
 
 
-    // PLAYER VOID
-    if(player.y>H+500)
-        damagePlayer(player.maxHP);
+    // =================================================
+    // FALL
+    // =================================================
+
+    if(
+        player.y>
+        H+500
+    ){
+
+        damagePlayer(
+            player.maxHP
+        );
+    }
 
 
+    // =================================================
     // CAMERA
-    const final=L.platforms[L.platforms.length-1];
+    // =================================================
+
+    const final=
+        L.platforms[
+            L.platforms.length-1
+        ];
+
 
     const worldWidth=
-        final[0]+final[2]+150;
+        final[0]+
+        final[2]+
+        150;
 
-    camera+=(
-        player.x-W*.35-camera
-    )*.1;
 
-    camera=Math.max(
-        0,
-        Math.min(
-            Math.max(0,worldWidth-W),
+    camera+=
+        (
+            player.x-
+            W*.35-
             camera
-        )
-    );
+        )*.1;
+
+
+    camera=
+        Math.max(
+            0,
+            Math.min(
+                Math.max(
+                    0,
+                    worldWidth-W
+                ),
+                camera
+            )
+        );
 
 
     if(messageTimer>0)
@@ -1587,57 +2377,102 @@ function update(){
 function draw(){
 
     if(screen==="start"){
+
         drawStartScreen();
         return;
     }
 
-    if(screen==="gameover"||screen==="won"){
-        drawWorld();
-        drawEndScreen();
-        return;
-    }
 
-    drawWorld();
-}
+    const L=
+        levels[level];
 
 
-function drawWorld(){
+    // =================================================
+    // SKY
+    // =================================================
 
-    const L=levels[level];
+    const gradient=
+        ctx.createLinearGradient(
+            0,0,0,H
+        );
 
-    const gradient=ctx.createLinearGradient(
-        0,0,0,H
+
+    gradient.addColorStop(
+        0,
+        L.sky1
     );
 
-    gradient.addColorStop(0,L.sky1);
-    gradient.addColorStop(1,L.sky2);
+
+    gradient.addColorStop(
+        1,
+        L.sky2
+    );
+
 
     ctx.fillStyle=gradient;
-    ctx.fillRect(0,0,W,H);
+
+
+    ctx.fillRect(
+        0,
+        0,
+        W,
+        H
+    );
+
 
     ctx.save();
-    ctx.translate(-camera,0);
 
 
+    ctx.translate(
+        -camera,
+        0
+    );
+
+
+    // =================================================
     // BACKGROUND
-    ctx.fillStyle="rgba(255,255,255,.13)";
+    // =================================================
 
-    for(let i=-2;i<20;i++){
+    ctx.fillStyle=
+        "rgba(255,255,255,.13)";
+
+
+    for(
+        let i=-2;
+        i<30;
+        i++
+    ){
 
         ctx.beginPath();
 
-        ctx.moveTo(i*600,700);
-        ctx.lineTo(i*600+300,180);
-        ctx.lineTo(i*600+650,700);
+        ctx.moveTo(
+            i*600,
+            700
+        );
+
+        ctx.lineTo(
+            i*600+300,
+            180
+        );
+
+        ctx.lineTo(
+            i*600+650,
+            700
+        );
 
         ctx.fill();
     }
 
 
+    // =================================================
     // PLATFORMS
+    // =================================================
+
     for(const p of L.platforms){
 
-        ctx.fillStyle="#263244";
+        ctx.fillStyle=
+            "#263244";
+
 
         ctx.fillRect(
             p[0],
@@ -1646,10 +2481,16 @@ function drawWorld(){
             p[3]
         );
 
+
         ctx.fillStyle=
             level>=15
-            ?"#fb923c"
-            :"#22c55e";
+            ?" #fb923c"
+            :" #22c55e";
+
+
+        ctx.fillStyle=
+            ctx.fillStyle.trim();
+
 
         ctx.fillRect(
             p[0],
@@ -1660,10 +2501,14 @@ function drawWorld(){
     }
 
 
+    // =================================================
     // SHOP
+    // =================================================
+
     if(shop){
 
         ctx.fillStyle="#78350f";
+
 
         ctx.fillRect(
             shop.x,
@@ -1672,7 +2517,9 @@ function drawWorld(){
             shop.height
         );
 
+
         ctx.fillStyle="#fbbf24";
+
 
         ctx.fillRect(
             shop.x-8,
@@ -1681,28 +2528,42 @@ function drawWorld(){
             22
         );
 
+
         ctx.fillStyle="white";
-        ctx.font="bold 18px Arial";
+
+        ctx.font=
+            "bold 18px Arial";
+
         ctx.textAlign="center";
+
 
         ctx.fillText(
             "SHOP",
-            shop.x+shop.width/2,
+            shop.x+
+            shop.width/2,
             shop.y+45
         );
+
 
         ctx.textAlign="left";
     }
 
 
+    // =================================================
     // COINS
+    // =================================================
+
     for(const c of coins){
 
-        if(c.collected)continue;
+        if(c.collected)
+            continue;
+
 
         ctx.fillStyle="#facc15";
 
+
         ctx.beginPath();
+
 
         ctx.arc(
             c.x,
@@ -1712,19 +2573,45 @@ function drawWorld(){
             Math.PI*2
         );
 
+
+        ctx.fill();
+
+
+        ctx.fillStyle="white";
+
+
+        ctx.beginPath();
+
+
+        ctx.arc(
+            c.x-3,
+            c.y-3,
+            3,
+            0,
+            Math.PI*2
+        );
+
+
         ctx.fill();
     }
 
 
+    // =================================================
     // MONSTERS
+    // =================================================
+
     for(const e of enemies){
 
         if(e.boss){
+
             drawBoss(e);
+
             continue;
         }
 
+
         ctx.fillStyle=e.color;
+
 
         ctx.fillRect(
             e.x,
@@ -1733,7 +2620,9 @@ function drawWorld(){
             e.height
         );
 
+
         ctx.fillStyle="#111827";
+
 
         ctx.fillRect(
             e.x+e.width*.2,
@@ -1742,12 +2631,14 @@ function drawWorld(){
             7
         );
 
+
         ctx.fillRect(
             e.x+e.width*.6,
             e.y+e.height*.2,
             7,
             7
         );
+
 
         drawHealth(
             e.x,
@@ -1760,50 +2651,89 @@ function drawWorld(){
     }
 
 
+    // =================================================
     // PORTAL
+    // =================================================
+
     const bossAlive=
-        enemies.some(e=>e.boss);
-
-    ctx.fillStyle="white";
-
-    ctx.fillRect(
-        portal.x,
-        portal.y,
-        7,
-        portal.height
-    );
-
-    ctx.fillStyle=
-        bossAlive
-        ?" #64748b"
-        :" #a855f7";
-
-    ctx.fillStyle=ctx.fillStyle.trim();
-
-    ctx.beginPath();
-
-    ctx.moveTo(
-        portal.x+7,
-        portal.y
-    );
-
-    ctx.lineTo(
-        portal.x+65,
-        portal.y+20
-    );
-
-    ctx.lineTo(
-        portal.x+7,
-        portal.y+40
-    );
-
-    ctx.closePath();
-
-    ctx.fill();
+        enemies.some(
+            e=>e.boss
+        );
 
 
+    if(portal){
+
+        ctx.fillStyle="white";
+
+
+        ctx.fillRect(
+            portal.x,
+            portal.y,
+            7,
+            portal.height
+        );
+
+
+        ctx.fillStyle=
+            bossAlive
+            ?" #64748b"
+            :" #a855f7";
+
+
+        ctx.fillStyle=
+            ctx.fillStyle.trim();
+
+
+        ctx.beginPath();
+
+
+        ctx.moveTo(
+            portal.x+7,
+            portal.y
+        );
+
+
+        ctx.lineTo(
+            portal.x+65,
+            portal.y+20
+        );
+
+
+        ctx.lineTo(
+            portal.x+7,
+            portal.y+40
+        );
+
+
+        ctx.closePath();
+
+
+        ctx.fill();
+
+
+        ctx.fillStyle="white";
+
+
+        ctx.font=
+            "bold 13px Arial";
+
+
+        ctx.fillText(
+            bossAlive
+            ?"DEFEAT BOSS"
+            :"NEXT LEVEL",
+            portal.x-20,
+            portal.y-12
+        );
+    }
+
+
+    // =================================================
     // PLAYER
+    // =================================================
+
     ctx.fillStyle="#7c3aed";
+
 
     ctx.fillRect(
         player.x,
@@ -1812,7 +2742,9 @@ function drawWorld(){
         player.height
     );
 
+
     ctx.fillStyle="white";
+
 
     ctx.fillRect(
         player.x+6,
@@ -1820,6 +2752,7 @@ function drawWorld(){
         7,
         7
     );
+
 
     ctx.fillRect(
         player.x+20,
@@ -1829,39 +2762,109 @@ function drawWorld(){
     );
 
 
+    // =================================================
     // SWORD SLASH
+    // =================================================
+
     if(player.attacking){
 
         ctx.save();
 
+
         const facing=
-            player.vx<0?-1:1;
+            player.vx<0
+            ?-1
+            :1;
+
 
         ctx.translate(
-            player.x+player.width/2,
-            player.y+player.height/2
+            player.x+
+            player.width/2,
+            player.y+
+            player.height/2
         );
 
+
         const progress=
-            1-player.attackTimer/.22;
+            1-
+            player.attackTimer/.22;
+
 
         ctx.rotate(
             facing*
-            (-1.1+progress*2.2)
+            (-1.1+
+            progress*2.2)
         );
 
-        drawSword();
+
+        // Eternal sword:
+        // black outside with red center.
+
+        if(swordRarity==="???"){
+
+            ctx.fillStyle="#050505";
+
+            ctx.fillRect(
+                facing*5,
+                -7,
+                facing*75,
+                14
+            );
+
+
+            ctx.fillStyle="#ef4444";
+
+            ctx.fillRect(
+                facing*5,
+                -3,
+                facing*75,
+                6
+            );
+
+        }else{
+
+            ctx.fillStyle=
+                swordColor();
+
+
+            ctx.fillRect(
+                facing*5,
+                -5,
+                facing*65,
+                10
+            );
+        }
+
+
+        ctx.fillStyle="#78350f";
+
+
+        ctx.fillRect(
+            facing*-10,
+            -4,
+            20,
+            8
+        );
+
 
         ctx.restore();
     }
 
 
+    // =================================================
     // BOSS WARNING
+    // =================================================
+
     for(const e of enemies){
 
-        if(e.boss&&e.warning){
+        if(
+            e.boss &&
+            e.warning
+        ){
 
-            ctx.fillStyle="rgba(255,0,0,.3)";
+            ctx.fillStyle=
+                "rgba(255,0,0,.3)";
+
 
             ctx.fillRect(
                 e.x-120,
@@ -1870,47 +2873,79 @@ function drawWorld(){
                 35
             );
 
+
             ctx.fillStyle="white";
-            ctx.font="bold 20px Arial";
+
+
+            ctx.font=
+                "bold 20px Arial";
+
 
             ctx.fillText(
-                "⚠ INCOMING ATTACK!",
+                "⚠ INCOMING SLAM!",
                 e.x-70,
                 e.y-25
             );
         }
     }
 
+
     ctx.restore();
 
 
     drawHUD();
+
     drawControls();
 
+
+    // =================================================
+    // SHOP BUTTON
+    // =================================================
 
     if(
         nearShop &&
         !shopOpen
     ){
 
-        const b=getShopOpenButton();
+        const b=
+            getShopOpenButton();
 
-        ctx.fillStyle="rgba(0,0,0,.75)";
+
+        ctx.fillStyle=
+            "rgba(0,0,0,.75)";
+
 
         ctx.fillRect(
-            b.x,b.y,b.w,b.h
+            b.x,
+            b.y,
+            b.w,
+            b.h
         );
+
 
         ctx.strokeStyle="#fbbf24";
+
+
         ctx.lineWidth=3;
 
+
         ctx.strokeRect(
-            b.x,b.y,b.w,b.h
+            b.x,
+            b.y,
+            b.w,
+            b.h
         );
 
+
         ctx.fillStyle="white";
+
+
         ctx.textAlign="center";
-        ctx.font="bold 20px Arial";
+
+
+        ctx.font=
+            "bold 20px Arial";
+
 
         ctx.fillText(
             "🏪 TAP TO SHOP",
@@ -1918,13 +2953,20 @@ function drawWorld(){
             b.y+39
         );
 
+
         ctx.textAlign="left";
     }
 
 
+    // =================================================
+    // MESSAGE
+    // =================================================
+
     if(messageTimer>0){
 
-        ctx.fillStyle="rgba(0,0,0,.65)";
+        ctx.fillStyle=
+            "rgba(0,0,0,.65)";
+
 
         ctx.fillRect(
             W/2-155,
@@ -1933,9 +2975,16 @@ function drawWorld(){
             55
         );
 
+
         ctx.fillStyle="white";
+
+
         ctx.textAlign="center";
-        ctx.font="bold 20px Arial";
+
+
+        ctx.font=
+            "bold 20px Arial";
+
 
         ctx.fillText(
             message,
@@ -1943,17 +2992,22 @@ function drawWorld(){
             160
         );
 
+
         ctx.textAlign="left";
     }
 
 
     if(shopOpen)
         drawShop();
+
+
+    if(gameOver||gameWon)
+        drawEndScreen();
 }
 
 
 // =====================================================
-// SWORD
+// SWORD COLOR
 // =====================================================
 
 function swordColor(){
@@ -1977,63 +3031,30 @@ function swordColor(){
         return "#ef4444";
 
     if(swordRarity==="SECRET")
-        return "#ef4444";
+        return "#06b6d4";
 
-    // Eternal: red middle, black outside.
     if(swordRarity==="???")
         return "#ef4444";
 
     return "#9ca3af";
 }
 
-function drawSword(){
-
-    // Eternal sword special design.
-    if(swordRarity==="???"){
-
-        ctx.fillStyle="#050505";
-
-        ctx.fillRect(
-            5,-8,
-            70,16
-        );
-
-        ctx.fillStyle="#ef4444";
-
-        ctx.fillRect(
-            8,-3,
-            64,6
-        );
-
-    }else{
-
-        ctx.fillStyle=swordColor();
-
-        ctx.fillRect(
-            5,-5,
-            65,10
-        );
-    }
-
-    ctx.fillStyle="#78350f";
-
-    ctx.fillRect(
-        -10,-4,
-        20,8
-    );
-}
-
 
 // =====================================================
-// BOSS
+// BOSS DRAW
 // =====================================================
 
 function drawBoss(b){
 
     ctx.fillStyle=
-        b.maxHP===50
-        ?"#dc2626"
-        :"#b45309";
+        b.bossName==="The Solar"
+        ?" #dc2626"
+        :" #b45309";
+
+
+    ctx.fillStyle=
+        ctx.fillStyle.trim();
+
 
     ctx.fillRect(
         b.x,
@@ -2042,7 +3063,9 @@ function drawBoss(b){
         b.height
     );
 
+
     ctx.fillStyle="white";
+
 
     ctx.fillRect(
         b.x+b.width*.2,
@@ -2051,12 +3074,14 @@ function drawBoss(b){
         20
     );
 
+
     ctx.fillRect(
         b.x+b.width*.65,
         b.y+b.height*.2,
         20,
         20
     );
+
 
     drawHealth(
         b.x,
@@ -2067,15 +3092,23 @@ function drawBoss(b){
         b.maxHP
     );
 
+
     ctx.fillStyle="white";
-    ctx.font="bold 18px Arial";
+
+
+    ctx.font=
+        "bold 18px Arial";
+
+
     ctx.textAlign="center";
+
 
     ctx.fillText(
         b.bossName,
         b.x+b.width/2,
         b.y-30
     );
+
 
     ctx.textAlign="left";
 }
@@ -2085,20 +3118,32 @@ function drawBoss(b){
 // HEALTH BAR
 // =====================================================
 
-function drawHealth(x,y,w,h,hp,max){
+function drawHealth(
+    x,y,w,h,hp,max
+){
 
     ctx.fillStyle="#111827";
 
-    ctx.fillRect(
-        x,y,w,h
-    );
-
-    ctx.fillStyle="#22c55e";
 
     ctx.fillRect(
         x,
         y,
-        w*Math.max(0,hp/max),
+        w,
+        h
+    );
+
+
+    ctx.fillStyle="#22c55e";
+
+
+    ctx.fillRect(
+        x,
+        y,
+        w*
+        Math.max(
+            0,
+            hp/max
+        ),
         h
     );
 }
@@ -2110,9 +3155,16 @@ function drawHealth(x,y,w,h,hp,max){
 
 function drawHUD(){
 
-    const width=Math.min(500,W-20);
+    const width=
+        Math.min(
+            470,
+            W-20
+        );
 
-    ctx.fillStyle="rgba(0,0,0,.6)";
+
+    ctx.fillStyle=
+        "rgba(0,0,0,.6)";
+
 
     ctx.fillRect(
         10,
@@ -2121,82 +3173,132 @@ function drawHUD(){
         155
     );
 
+
     ctx.fillStyle="white";
 
-    ctx.font="bold 17px Arial";
+
+    ctx.font=
+        "bold 17px Arial";
+
 
     ctx.fillText(
-        "LEVEL "+(level+1)+
+        "LEVEL "+
+        (level+1)+
         " / 20 — "+
         levels[level].name,
-        22,35
+        22,
+        35
     );
+
 
     ctx.font="14px Arial";
 
+
     ctx.fillText(
         "❤️ HP: "+
-        Math.max(0,Math.ceil(player.hp))+
+        player.hp+
         " / "+
         player.maxHP,
-        22,60
+        22,
+        60
     );
+
 
     ctx.fillText(
-        "💗 Lives: "+lives,
-        22,83
+        "💗 Lives: "+
+        lives,
+        22,
+        83
     );
+
 
     ctx.fillText(
-        "🪙 Coins: "+score,
-        135,83
+        "🪙 Coins: "+
+        score,
+        135,
+        83
     );
+
 
     ctx.fillText(
-        "☠ Kills: "+monstersKilled,
-        250,83
+        "☠ Kills: "+
+        monstersKilled,
+        250,
+        83
     );
+
 
     ctx.fillText(
-        "🛡 Shields: "+shieldCount,
-        22,107
+        "⚔ "+
+        swordRarity+
+        " — "+
+        swordDamage+
+        " DMG",
+        22,
+        108
     );
+
 
     ctx.fillText(
-        "⚔ "+swordRarity+
-        " — "+swordDamage+" DMG",
-        22,132
+        "🛡 Shields: "+
+        shieldCount,
+        22,
+        133
     );
 
-    if(doubleCoinsTimer>0){
+
+    if(doubleCoins>0){
 
         ctx.fillStyle="#facc15";
 
-        ctx.font="bold 15px Arial";
+
+        ctx.font=
+            "bold 15px Arial";
+
 
         ctx.fillText(
             "🪙 2X COINS: "+
-            Math.ceil(doubleCoinsTimer)+"s",
-            250,
-            132
+            Math.ceil(doubleCoins)+
+            "s",
+            190,
+            133
         );
     }
+
 
     if(speedRun){
 
-        const elapsed=
-            (performance.now()-speedRunStart)/1000;
+        ctx.fillStyle="#60a5fa";
 
-        ctx.fillStyle="#67e8f9";
-
-        ctx.font="bold 15px Arial";
 
         ctx.fillText(
-            "⏱ "+formatTime(elapsed),
-            22,
-            153
+            "⏱ "+
+            formatTime(speedRunTime),
+            350,
+            133
         );
     }
+}
+
+
+// =====================================================
+// FORMAT TIME
+// =====================================================
+
+function formatTime(seconds){
+
+    const min=
+        Math.floor(seconds/60);
+
+    const sec=
+        seconds%60;
+
+
+    return(
+        String(min).padStart(2,"0")+
+        ":"+
+        sec.toFixed(2).padStart(5,"0")
+    );
 }
 
 
@@ -2208,15 +3310,40 @@ function drawControls(){
 
     const b=getButtons();
 
-    drawControl(b.left,touchLeft);
-    drawControl(b.right,touchRight);
-    drawControl(b.jump,touchJump);
-    drawControl(b.attack,touchAttack);
+
+    drawControl(
+        b.left,
+        touchLeft
+    );
+
+
+    drawControl(
+        b.right,
+        touchRight
+    );
+
+
+    drawControl(
+        b.jump,
+        touchJump
+    );
+
+
+    drawControl(
+        b.attack,
+        touchAttack
+    );
+
 
     ctx.textAlign="center";
+
+
     ctx.fillStyle="white";
 
-    ctx.font="bold 35px Arial";
+
+    ctx.font=
+        "bold 35px Arial";
+
 
     ctx.fillText(
         "◀",
@@ -2224,11 +3351,13 @@ function drawControls(){
         b.left.y+48
     );
 
+
     ctx.fillText(
         "▶",
         b.right.x+b.right.w/2,
         b.right.y+48
     );
+
 
     ctx.fillText(
         "▲",
@@ -2236,7 +3365,10 @@ function drawControls(){
         b.jump.y+48
     );
 
-    ctx.font="bold 27px Arial";
+
+    ctx.font=
+        "bold 27px Arial";
+
 
     ctx.fillText(
         "⚔",
@@ -2244,8 +3376,10 @@ function drawControls(){
         b.attack.y+48
     );
 
+
     ctx.textAlign="left";
 }
+
 
 function drawControl(b,active){
 
@@ -2254,14 +3388,25 @@ function drawControl(b,active){
         ?"rgba(255,255,255,.45)"
         :"rgba(255,255,255,.18)";
 
-    ctx.strokeStyle="rgba(255,255,255,.75)";
+
+    ctx.strokeStyle=
+        "rgba(255,255,255,.75)";
+
+
     ctx.lineWidth=2;
+
 
     ctx.beginPath();
 
+
     ctx.roundRect(
-        b.x,b.y,b.w,b.h,20
+        b.x,
+        b.y,
+        b.w,
+        b.h,
+        20
     );
+
 
     ctx.fill();
     ctx.stroke();
@@ -2274,16 +3419,27 @@ function drawControl(b,active){
 
 function drawShop(){
 
-    ctx.fillStyle="rgba(0,0,0,.90)";
+    ctx.fillStyle=
+        "rgba(0,0,0,.90)";
+
 
     ctx.fillRect(
-        0,0,W,H
+        0,
+        0,
+        W,
+        H
     );
 
+
     ctx.fillStyle="white";
+
+
     ctx.textAlign="center";
 
-    ctx.font="bold 32px Arial";
+
+    ctx.font=
+        "bold 30px Arial";
+
 
     ctx.fillText(
         "🏪 SHOP",
@@ -2291,46 +3447,94 @@ function drawShop(){
         55
     );
 
+
     ctx.font="17px Arial";
 
+
     ctx.fillText(
-        "🪙 Coins: "+score,
+        "🪙 Coins: "+
+        score,
         W/2,
         85
     );
 
-    const cardW=Math.min(200,(W-50)/3);
+
+    const cardW=
+        Math.min(
+            200,
+            (W-50)/3
+        );
+
+
     const gap=10;
 
-    const total=cardW*3+gap*2;
-    const start=W/2-total/2;
 
-    for(let i=0;i<shopItems.length;i++){
+    const total=
+        cardW*3+
+        gap*2;
 
-        const item=shopItems[i];
 
-        const x=start+i*(cardW+gap);
+    const start=
+        W/2-total/2;
+
+
+    for(
+        let i=0;
+        i<shopItems.length;
+        i++
+    ){
+
+        const item=
+            shopItems[i];
+
+
+        const x=
+            start+
+            i*(cardW+gap);
+
+
         const y=125;
 
-        ctx.fillStyle="rgba(255,255,255,.12)";
+
+        ctx.fillStyle=
+            "rgba(255,255,255,.12)";
+
 
         ctx.fillRect(
-            x,y,cardW,245
+            x,
+            y,
+            cardW,
+            245
         );
+
 
         ctx.strokeStyle=
             item.damage
-            ?swordColor()
+            ?(
+                item.rarity==="???"
+                ?"red"
+                :swordColor()
+            )
             :"rgba(255,255,255,.35)";
+
 
         ctx.lineWidth=3;
 
+
         ctx.strokeRect(
-            x,y,cardW,245
+            x,
+            y,
+            cardW,
+            245
         );
 
+
         ctx.fillStyle="white";
-        ctx.font="bold 16px Arial";
+
+
+        ctx.font=
+            "bold 15px Arial";
+
 
         ctx.fillText(
             item.name,
@@ -2338,7 +3542,9 @@ function drawShop(){
             y+40
         );
 
-        ctx.font="13px Arial";
+
+        ctx.font="12px Arial";
+
 
         ctx.fillText(
             item.description,
@@ -2346,10 +3552,18 @@ function drawShop(){
             y+75
         );
 
+
         if(item.damage){
 
-            ctx.fillStyle=swordColor();
-            ctx.font="bold 18px Arial";
+            ctx.fillStyle=
+                item.rarity==="???"
+                ?"red"
+                :swordColor();
+
+
+            ctx.font=
+                "bold 17px Arial";
+
 
             ctx.fillText(
                 item.rarity+
@@ -2359,24 +3573,47 @@ function drawShop(){
                 x+cardW/2,
                 y+112
             );
+
+
+            ctx.fillStyle="white";
+
+
+            ctx.font="11px Arial";
+
+
+            ctx.fillText(
+                "Shop chance: "+
+                item.chance+"%",
+                x+cardW/2,
+                y+135
+            );
         }
 
+
         ctx.fillStyle="white";
-        ctx.font="bold 18px Arial";
+
+
+        ctx.font=
+            "bold 18px Arial";
+
 
         ctx.fillText(
-            "🪙 "+item.price,
+            "🪙 "+
+            item.price,
             x+cardW/2,
-            y+145
+            y+155
         );
+
 
         const affordable=
             score>=item.price;
+
 
         ctx.fillStyle=
             affordable
             ?"rgba(34,197,94,.85)"
             :"rgba(90,90,90,.7)";
+
 
         ctx.fillRect(
             x+10,
@@ -2385,8 +3622,13 @@ function drawShop(){
             55
         );
 
+
         ctx.fillStyle="white";
-        ctx.font="bold 16px Arial";
+
+
+        ctx.font=
+            "bold 15px Arial";
+
 
         ctx.fillText(
             affordable
@@ -2397,7 +3639,12 @@ function drawShop(){
         );
     }
 
-    ctx.fillStyle="rgba(239,68,68,.85)";
+
+    // CLOSE
+
+    ctx.fillStyle=
+        "rgba(239,68,68,.85)";
+
 
     ctx.fillRect(
         W/2-85,
@@ -2406,8 +3653,13 @@ function drawShop(){
         55
     );
 
+
     ctx.fillStyle="white";
-    ctx.font="bold 18px Arial";
+
+
+    ctx.font=
+        "bold 18px Arial";
+
 
     ctx.fillText(
         "CLOSE",
@@ -2415,7 +3667,38 @@ function drawShop(){
         H-55
     );
 
+
     ctx.textAlign="left";
+}
+
+
+// =====================================================
+// START SCREEN BUTTONS
+// =====================================================
+
+function getPlayButton(){
+
+    return{
+
+        x:W/2-130,
+        y:H/2-45,
+
+        w:260,
+        h:70
+    };
+}
+
+
+function getSpeedRunButton(){
+
+    return{
+
+        x:W/2-130,
+        y:H/2+45,
+
+        w:260,
+        h:70
+    };
 }
 
 
@@ -2425,44 +3708,69 @@ function drawShop(){
 
 function drawStartScreen(){
 
-    const g=ctx.createLinearGradient(
-        0,0,0,H
+    const gradient=
+        ctx.createLinearGradient(
+            0,0,0,H
+        );
+
+
+    gradient.addColorStop(
+        0,
+        "#1d4ed8"
     );
 
-    g.addColorStop(0,"#172554");
-    g.addColorStop(1,"#581c87");
 
-    ctx.fillStyle=g;
+    gradient.addColorStop(
+        1,
+        "#111827"
+    );
+
+
+    ctx.fillStyle=gradient;
+
 
     ctx.fillRect(
-        0,0,W,H
+        0,
+        0,
+        W,
+        H
     );
 
-    ctx.textAlign="center";
 
     ctx.fillStyle="white";
 
+
+    ctx.textAlign="center";
+
+
     ctx.font=
-        "bold "+Math.min(48,W*.1)+"px Arial";
+        "bold 42px Arial";
+
 
     ctx.fillText(
         "⚔ SKY BOUND RUNNER",
         W/2,
-        H/2-145
+        H/2-160
     );
 
+
     ctx.font="18px Arial";
+
 
     ctx.fillText(
         "20 LEVELS • BOSSES • SHOPS • SWORDS",
         W/2,
-        H/2-105
+        H/2-120
     );
 
 
-    const play=getPlayButton();
+    const play=
+        getPlayButton();
 
-    ctx.fillStyle="#22c55e";
+
+    ctx.fillStyle=
+        "rgba(34,197,94,.9)";
+
 
     ctx.fillRect(
         play.x,
@@ -2471,20 +3779,28 @@ function drawStartScreen(){
         play.h
     );
 
+
     ctx.fillStyle="white";
 
-    ctx.font="bold 25px Arial";
+
+    ctx.font=
+        "bold 27px Arial";
+
 
     ctx.fillText(
         "▶ PLAY",
         W/2,
-        play.y+42
+        play.y+45
     );
 
 
-    const speed=getSpeedButton();
+    const speed=
+        getSpeedRunButton();
 
-    ctx.fillStyle="#f59e0b";
+
+    ctx.fillStyle=
+        "rgba(168,85,247,.9)";
+
 
     ctx.fillRect(
         speed.x,
@@ -2493,24 +3809,45 @@ function drawStartScreen(){
         speed.h
     );
 
+
     ctx.fillStyle="white";
+
 
     ctx.fillText(
         "⏱ SPEED RUN",
         W/2,
-        speed.y+42
+        speed.y+45
     );
 
 
-    ctx.font="15px Arial";
+    ctx.font="14px Arial";
+
 
     ctx.fillText(
-        "Speed Run records your time from Level 1 to Level 20.",
+        "Speed Run stops the timer when you beat Level 20.",
         W/2,
-        speed.y+100
+        H/2+145
     );
 
+
     ctx.textAlign="left";
+}
+
+
+// =====================================================
+// RETRY BUTTON
+// =====================================================
+
+function getRetryButton(){
+
+    return{
+
+        x:W/2-125,
+        y:H/2+120,
+
+        w:250,
+        h:70
+    };
 }
 
 
@@ -2520,79 +3857,100 @@ function drawStartScreen(){
 
 function drawEndScreen(){
 
-    ctx.fillStyle="rgba(0,0,0,.88)";
+    ctx.fillStyle=
+        "rgba(0,0,0,.88)";
+
 
     ctx.fillRect(
-        0,0,W,H
+        0,
+        0,
+        W,
+        H
     );
 
-    ctx.textAlign="center";
 
     ctx.fillStyle="white";
 
-    ctx.font="bold 30px Arial";
+
+    ctx.textAlign="center";
+
+
+    ctx.font=
+        "bold 30px Arial";
+
 
     ctx.fillText(
         gameWon
         ?"🏆 YOU BEAT ALL 20 LEVELS!"
         :"💀 GAME OVER",
         W/2,
-        H/2-145
+        H/2-130
     );
+
 
     ctx.font="19px Arial";
-
-    ctx.fillText(
-        "Level reached: "+(level+1),
-        W/2,
-        H/2-100
-    );
-
-    ctx.fillText(
-        "🪙 Total coins: "+totalCoins,
-        W/2,
-        H/2-65
-    );
-
-    ctx.fillText(
-        "☠ Monsters defeated: "+monstersKilled,
-        W/2,
-        H/2-30
-    );
-
-    ctx.fillText(
-        "⚔ Sword: "+swordRarity+
-        " ("+swordDamage+" damage)",
-        W/2,
-        H/2+5
-    );
 
 
     if(speedRun){
 
-        let finalTime;
-
-        if(speedRunEnd)
-            finalTime=(speedRunEnd-speedRunStart)/1000;
-        else
-            finalTime=(performance.now()-speedRunStart)/1000;
-
-        ctx.fillStyle="#facc15";
-
-        ctx.font="bold 25px Arial";
-
         ctx.fillText(
-            "⏱ SPEED RUN TIME: "+
-            formatTime(finalTime),
+            gameWon
+            ?"⏱ SPEED RUN TIME: "+
+             formatTime(speedRunTime)
+            :"⏱ TIME: "+
+             formatTime(speedRunTime),
             W/2,
-            H/2+48
+            H/2-85
         );
     }
 
 
-    const retry=getRetryButton();
+    ctx.fillText(
+        "Level reached: "+
+        (level+1),
+        W/2,
+        H/2-45
+    );
 
-    ctx.fillStyle="#22c55e";
+
+    ctx.fillText(
+        "🪙 Total coins: "+
+        totalCoins,
+        W/2,
+        H/2-10
+    );
+
+
+    ctx.fillText(
+        "☠ Monsters defeated: "+
+        monstersKilled,
+        W/2,
+        H/2+25
+    );
+
+
+    ctx.fillText(
+        "⚔ Sword: "+
+        swordRarity+
+        " ("+
+        swordDamage+
+        " damage)",
+        W/2,
+        H/2+60
+    );
+
+
+    // =================================================
+    // MOBILE RETRY BUTTON
+    // =================================================
+
+    const retry=
+        getRetryButton();
+
+
+    ctx.fillStyle=
+        "rgba(34,197,94,.95)";
+
 
     ctx.fillRect(
         retry.x,
@@ -2601,58 +3959,84 @@ function drawEndScreen(){
         retry.h
     );
 
+
     ctx.fillStyle="white";
 
-    ctx.font="bold 22px Arial";
+
+    ctx.font=
+        "bold 24px Arial";
+
 
     ctx.fillText(
         "🔄 PLAY AGAIN",
         W/2,
-        retry.y+42
+        retry.y+45
     );
 
 
-    const home=getHomeButton();
+    ctx.font="14px Arial";
 
-    ctx.fillStyle="#475569";
-
-    ctx.fillRect(
-        home.x,
-        home.y,
-        home.w,
-        home.h
-    );
-
-    ctx.fillStyle="white";
-
-    ctx.font="bold 20px Arial";
 
     ctx.fillText(
-        "⌂ MAIN MENU",
+        "You can also press R.",
         W/2,
-        home.y+39
+        retry.y+95
     );
+
 
     ctx.textAlign="left";
 }
 
 
 // =====================================================
-// TIMER
+// RESTART
 // =====================================================
 
-function formatTime(seconds){
+function restart(){
 
-    const mins=Math.floor(seconds/60);
-    const secs=Math.floor(seconds%60);
-    const ms=Math.floor((seconds%1)*1000);
+    screen="game";
 
-    return String(mins).padStart(2,"0")+
-        ":"+
-        String(secs).padStart(2,"0")+
-        "."+
-        String(ms).padStart(3,"0");
+    level=0;
+
+    score=0;
+
+    totalCoins=0;
+
+    monstersKilled=0;
+
+    lives=3;
+
+    swordDamage=3;
+
+    swordRarity="COMMON";
+
+    shieldCount=0;
+
+    doubleCoins=0;
+
+    purchasedPermanent.clear();
+
+    camera=0;
+
+    gameOver=false;
+    gameWon=false;
+
+    shopOpen=false;
+
+    speedRunStart=
+        performance.now();
+
+    speedRunTime=0;
+
+    loadLevel(0);
 }
+
+
+// =====================================================
+// START
+// =====================================================
+
+screen="start";
 
 
 // =====================================================
@@ -2662,13 +4046,18 @@ function formatTime(seconds){
 function gameLoop(){
 
     update();
+
     draw();
 
-    requestAnimationFrame(gameLoop);
+    requestAnimationFrame(
+        gameLoop
+    );
 }
+
 
 gameLoop();
 
 </script>
+
 </body>
 </html>
