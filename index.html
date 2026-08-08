@@ -2,9 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport"
-content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
 <title>Sky Bound Runner</title>
 
 <style>
@@ -20,11 +18,9 @@ html,body{
     -webkit-user-select:none;
     -webkit-touch-callout:none;
 }
-
 canvas{
     position:fixed;
-    left:0;
-    top:0;
+    inset:0;
     width:100vw;
     height:100vh;
     display:block;
@@ -36,34 +32,24 @@ canvas{
 </head>
 
 <body>
-
 <canvas id="game"></canvas>
 
 <script>
-
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
 
-let W=innerWidth;
-let H=innerHeight;
-let dpr=1;
+let W=innerWidth,H=innerHeight,dpr=1;
 
 function resize(){
-
     W=innerWidth;
     H=innerHeight;
-
     dpr=Math.min(devicePixelRatio||1,2);
-
     canvas.width=W*dpr;
     canvas.height=H*dpr;
-
     ctx.setTransform(dpr,0,0,dpr,0,0);
 }
-
 addEventListener("resize",resize);
 addEventListener("orientationchange",resize);
-
 resize();
 
 
@@ -71,156 +57,75 @@ resize();
 // INPUT
 // =====================================================
 
-let touchLeft=false;
-let touchRight=false;
-let touchJump=false;
-let touchAttack=false;
-
-let keyLeft=false;
-let keyRight=false;
-let keyJump=false;
-let keyAttack=false;
-
+let touchLeft=false,touchRight=false,touchJump=false,touchAttack=false;
+let keyLeft=false,keyRight=false,keyJump=false,keyAttack=false;
 const fingers=new Map();
 
 function getButtons(){
-
-    const s=Math.min(
-        100,
-        Math.max(82,W*.14)
-    );
-
-    const gap=14;
-    const bottom=20;
+    const s=Math.min(100,Math.max(82,W*.14));
+    const gap=14,bottom=20;
 
     return{
-        left:{
-            x:20,
-            y:H-s-bottom,
-            w:s,
-            h:s
-        },
-
-        right:{
-            x:20+s+gap,
-            y:H-s-bottom,
-            w:s,
-            h:s
-        },
-
-        jump:{
-            x:W-s*2-gap-20,
-            y:H-s-bottom,
-            w:s,
-            h:s
-        },
-
-        attack:{
-            x:W-s-20,
-            y:H-s-bottom,
-            w:s,
-            h:s
-        }
+        left:{x:20,y:H-s-bottom,w:s,h:s},
+        right:{x:20+s+gap,y:H-s-bottom,w:s,h:s},
+        jump:{x:W-s*2-gap-20,y:H-s-bottom,w:s,h:s},
+        attack:{x:W-s-20,y:H-s-bottom,w:s,h:s}
     };
 }
 
 function getPoint(e){
-
     const r=canvas.getBoundingClientRect();
-
-    return{
-        x:e.clientX-r.left,
-        y:e.clientY-r.top
-    };
+    return{x:e.clientX-r.left,y:e.clientY-r.top};
 }
 
 function inside(p,b){
-
-    return(
-        p.x>=b.x &&
-        p.x<=b.x+b.w &&
-        p.y>=b.y &&
-        p.y<=b.y+b.h
-    );
+    return p.x>=b.x&&p.x<=b.x+b.w&&
+           p.y>=b.y&&p.y<=b.y+b.h;
 }
 
 function updateTouchControls(){
-
-    touchLeft=false;
-    touchRight=false;
-    touchJump=false;
-    touchAttack=false;
-
+    touchLeft=touchRight=touchJump=touchAttack=false;
     const b=getButtons();
 
     for(const p of fingers.values()){
-
-        if(inside(p,b.left))
-            touchLeft=true;
-
-        if(inside(p,b.right))
-            touchRight=true;
-
-        if(inside(p,b.jump))
-            touchJump=true;
-
-        if(inside(p,b.attack))
-            touchAttack=true;
+        if(inside(p,b.left))touchLeft=true;
+        if(inside(p,b.right))touchRight=true;
+        if(inside(p,b.jump))touchJump=true;
+        if(inside(p,b.attack))touchAttack=true;
     }
 }
 
 canvas.addEventListener("pointerdown",e=>{
-
     e.preventDefault();
-
     const p=getPoint(e);
 
-    // SHOP INTERACTION
     if(shopOpen){
-
         handleShopTouch(p);
         return;
     }
 
-    // SHOP OPEN BUTTON
-    if(
-        nearShop &&
-        !shopOpen &&
-        inside(p,getShopOpenButton())
-    ){
-
+    if(nearShop&&!shopOpen&&inside(p,getShopOpenButton())){
         shopOpen=true;
         return;
     }
 
     fingers.set(e.pointerId,p);
 
-    try{
-        canvas.setPointerCapture(e.pointerId);
-    }catch(_){}
+    try{canvas.setPointerCapture(e.pointerId)}catch(_){}
 
     updateTouchControls();
-
 },{passive:false});
 
 canvas.addEventListener("pointermove",e=>{
-
     e.preventDefault();
 
     if(fingers.has(e.pointerId)){
-
-        fingers.set(
-            e.pointerId,
-            getPoint(e)
-        );
-
+        fingers.set(e.pointerId,getPoint(e));
         updateTouchControls();
     }
-
 },{passive:false});
 
 function pointerEnd(e){
-
     fingers.delete(e.pointerId);
     updateTouchControls();
 }
@@ -228,57 +133,37 @@ function pointerEnd(e){
 canvas.addEventListener("pointerup",pointerEnd);
 canvas.addEventListener("pointercancel",pointerEnd);
 
-
-// =====================================================
-// KEYBOARD
-// =====================================================
-
 document.addEventListener("keydown",e=>{
-
     const k=e.key.toLowerCase();
 
-    if(k==="arrowleft"||k==="a")
-        keyLeft=true;
-
-    if(k==="arrowright"||k==="d")
-        keyRight=true;
+    if(k==="arrowleft"||k==="a")keyLeft=true;
+    if(k==="arrowright"||k==="d")keyRight=true;
 
     if(k==="arrowup"||k==="w"||k===" "){
-
         keyJump=true;
         e.preventDefault();
     }
 
     if(k==="j"||k==="f"||k==="z"){
-
         keyAttack=true;
         e.preventDefault();
     }
 
-    if(k==="r")
-        restart();
+    if(k==="r")restart();
 });
 
 document.addEventListener("keyup",e=>{
-
     const k=e.key.toLowerCase();
 
-    if(k==="arrowleft"||k==="a")
-        keyLeft=false;
-
-    if(k==="arrowright"||k==="d")
-        keyRight=false;
-
-    if(k==="arrowup"||k==="w"||k===" ")
-        keyJump=false;
-
-    if(k==="j"||k==="f"||k==="z")
-        keyAttack=false;
+    if(k==="arrowleft"||k==="a")keyLeft=false;
+    if(k==="arrowright"||k==="d")keyRight=false;
+    if(k==="arrowup"||k==="w"||k===" ")keyJump=false;
+    if(k==="j"||k==="f"||k==="z")keyAttack=false;
 });
 
 
 // =====================================================
-// LEVELS
+// LEVEL GENERATION
 // =====================================================
 
 const levels=[];
@@ -293,7 +178,6 @@ const themes=[
 for(let n=0;n<20;n++){
 
     const platforms=[];
-
     let x=0;
 
     for(let i=0;i<14;i++){
@@ -301,56 +185,32 @@ for(let n=0;n<20;n++){
         let y;
 
         if(i===0){
-
             y=500;
-
         }else{
+            const previous=platforms[i-1][1];
 
-            const previous=
-                platforms[i-1][1];
+            /*
+             * Keep platform changes reachable.
+             * No platform is more than 60 pixels
+             * above/below the previous one.
+             */
+            const change=((i*31+n*17)%121)-60;
 
-            const change=
-                ((i*31+n*17)%121)-60;
-
-            y=
-                previous+
-                change;
-
-            y=
-                Math.max(
-                    350,
-                    Math.min(520,y)
-                );
+            y=Math.max(350,Math.min(520,previous+change));
         }
 
-        const width=
-            310+
-            ((i*47+n*13)%90);
+        const width=310+((i*47+n*13)%90);
 
-        platforms.push([
-            x,
-            y,
-            width,
-            45
-        ]);
+        platforms.push([x,y,width,45]);
 
-        x+=
-            width+
-            55+
-            ((i*17+n*11)%35);
+        x+=width+55+((i*17+n*11)%35);
     }
 
-    platforms.push([
-        x,
-        450,
-        800,
-        50
-    ]);
+    platforms.push([x,450,800,50]);
 
     const coins=[];
 
     for(const p of platforms){
-
         coins.push([
             p[0]+p[2]/2,
             p[1]-35
@@ -361,57 +221,42 @@ for(let n=0;n<20;n++){
 
     for(let m=0;m<6;m++){
 
-        const pi=
+        /*
+         * Monster type progression.
+         */
+        let type=1;
+
+        if(n>=5&&m>=2)type=2;
+        if(n>=10&&m>=3)type=3;
+        if(n>=15&&m>=4)type=4;
+
+        /*
+         * Store the PLATFORM INDEX instead of
+         * a random X coordinate.
+         *
+         * This prevents monsters from spawning
+         * underneath platforms.
+         */
+        const platformIndex=
             Math.min(
-                m+1,
+                1+m,
                 platforms.length-2
             );
 
-        const p=platforms[pi];
-
-        let type=1;
-
-        // Stronger monsters appear later.
-
-        if(n>=5 && m>=2)
-            type=2;
-
-        if(n>=10 && m>=3)
-            type=3;
-
-        if(n>=15 && m>=4)
-            type=4;
-
         monsters.push({
-            x:p[0]+p[2]/2,
-            type:type
+            platformIndex,
+            type
         });
     }
 
     levels.push({
-
-        name:
-            themes[
-                Math.floor(n/5)
-            ][2],
-
-        sky1:
-            themes[
-                Math.floor(n/5)
-            ][0],
-
-        sky2:
-            themes[
-                Math.floor(n/5)
-            ][1],
-
-        platforms:platforms,
-        coins:coins,
-        monsters:monsters,
-
-        boss:
-            n===9||
-            n===19
+        name:themes[Math.floor(n/5)][2],
+        sky1:themes[Math.floor(n/5)][0],
+        sky2:themes[Math.floor(n/5)][1],
+        platforms,
+        coins,
+        monsters,
+        boss:n===9||n===19
     });
 }
 
@@ -421,13 +266,11 @@ for(let n=0;n<20;n++){
 // =====================================================
 
 let level=0;
-
 let score=0;
 let totalCoins=0;
 let monstersKilled=0;
 
 let lives=3;
-
 let camera=0;
 
 let gameOver=false;
@@ -456,7 +299,6 @@ let lastTime=performance.now();
 // =====================================================
 
 const shopPool=[
-
     {
         id:"life",
         name:"❤️ +1 LIFE",
@@ -464,7 +306,6 @@ const shopPool=[
         description:"Gain another life.",
         repeat:true
     },
-
     {
         id:"heal",
         name:"💚 HEAL 10 HP",
@@ -472,7 +313,6 @@ const shopPool=[
         description:"Restore 10 lost HP.",
         repeat:true
     },
-
     {
         id:"jump",
         name:"🦘 JUMP BOOST",
@@ -480,7 +320,6 @@ const shopPool=[
         description:"Jump higher.",
         repeat:false
     },
-
     {
         id:"speed",
         name:"💨 SPEED BOOST",
@@ -488,7 +327,6 @@ const shopPool=[
         description:"Run faster.",
         repeat:false
     },
-
     {
         id:"strength",
         name:"💪 STRENGTH",
@@ -496,7 +334,6 @@ const shopPool=[
         description:"Increase sword damage.",
         repeat:false
     },
-
     {
         id:"maxhp",
         name:"❤️ MAX HP +10",
@@ -506,6 +343,11 @@ const shopPool=[
     }
 ];
 
+
+// =====================================================
+// WEAPON SHOP
+// =====================================================
+
 const weaponPool=[
 
     {
@@ -513,7 +355,8 @@ const weaponPool=[
         name:"🗡 UNCOMMON SWORD",
         price:25,
         damage:5,
-        rarity:"UNCOMMON"
+        rarity:"UNCOMMON",
+        chance:.39
     },
 
     {
@@ -521,7 +364,8 @@ const weaponPool=[
         name:"🗡 RARE SWORD",
         price:45,
         damage:7,
-        rarity:"RARE"
+        rarity:"RARE",
+        chance:.25
     },
 
     {
@@ -529,7 +373,8 @@ const weaponPool=[
         name:"🗡 EPIC SWORD",
         price:70,
         damage:10,
-        rarity:"EPIC"
+        rarity:"EPIC",
+        chance:.20
     },
 
     {
@@ -537,7 +382,8 @@ const weaponPool=[
         name:"🗡 LEGENDARY SWORD",
         price:110,
         damage:12,
-        rarity:"LEGENDARY"
+        rarity:"LEGENDARY",
+        chance:.10
     },
 
     {
@@ -545,13 +391,53 @@ const weaponPool=[
         name:"🗡 MYTHIC SWORD",
         price:160,
         damage:15,
-        rarity:"MYTHIC"
+        rarity:"MYTHIC",
+        chance:.05
+    },
+
+    {
+        id:"secret",
+        name:"🗡 SECRET SWORD",
+        price:250,
+        damage:20,
+        rarity:"SECRET",
+        chance:.009
+    },
+
+    {
+        id:"eternal",
+        name:"🗡 ETERNAL SWORD",
+        price:500,
+        damage:40,
+        rarity:"???",
+        chance:.001
     }
 ];
 
 let shopItems=[];
-
 let purchasedPermanent=new Set();
+
+
+// =====================================================
+// WEAPON COLORS
+// =====================================================
+
+function rarityColor(r){
+
+    if(r==="COMMON")return"#9ca3af";
+    if(r==="UNCOMMON")return"#22c55e";
+    if(r==="RARE")return"#3b82f6";
+    if(r==="EPIC")return"#a855f7";
+    if(r==="LEGENDARY")return"#facc15";
+    if(r==="MYTHIC")return"#ef4444";
+    if(r==="SECRET")return"#00ffff";
+
+    return"#ff0000";
+}
+
+function swordColor(){
+    return rarityColor(swordRarity);
+}
 
 
 // =====================================================
@@ -561,7 +447,6 @@ let purchasedPermanent=new Set();
 function monsterStats(type){
 
     if(type===1){
-
         return{
             hp:5,
             damage:5,
@@ -574,7 +459,6 @@ function monsterStats(type){
     }
 
     if(type===2){
-
         return{
             hp:10,
             damage:7,
@@ -587,7 +471,6 @@ function monsterStats(type){
     }
 
     if(type===3){
-
         return{
             hp:15,
             damage:10,
@@ -600,7 +483,6 @@ function monsterStats(type){
     }
 
     return{
-
         hp:20,
         damage:15,
         rate:2,
@@ -619,74 +501,57 @@ function monsterStats(type){
 function loadLevel(n){
 
     level=n;
-
     shopOpen=false;
 
     const L=levels[level];
 
     player={
-
         x:80,
         y:250,
-
         width:34,
         height:48,
-
         vx:0,
         vy:0,
-
-        speed:
-            7,
-
-        jumpPower:
-            -13,
-
+        speed:7,
+        jumpPower:-13,
         ground:false,
-
-        maxHP:
-            20+
-            level*10,
-
-        hp:
-            20+
-            level*10,
-
+        maxHP:20+level*10,
+        hp:20+level*10,
         attackCooldown:0,
         attacking:false,
         attackTimer:0
     };
 
-
     coins=L.coins.map(c=>({
-
         x:c[0],
         y:c[1],
         collected:false
     }));
 
-
     enemies=[];
 
-
+    /*
+     * SPAWN FIX:
+     * Every monster is placed on the TOP of the
+     * exact platform assigned to it.
+     */
     for(const data of L.monsters){
 
-        const s=
-            monsterStats(
-                data.type
+        const s=monsterStats(data.type);
+
+        const p=L.platforms[data.platformIndex];
+
+        const spawnX=
+            p[0]+
+            40+
+            Math.random()*
+            Math.max(
+                20,
+                p[2]-s.width-80
             );
 
-        const p=
-            L.platforms[
-                Math.min(
-                    data.type+1,
-                    L.platforms.length-2
-                )
-            ];
-
         enemies.push({
-
-            x:data.x,
-
+            x:spawnX,
             y:p[1]-s.height,
 
             width:s.width,
@@ -707,11 +572,9 @@ function loadLevel(n){
             vy:0,
 
             ground:true,
-
             active:false,
 
             attackTimer:0,
-
             dead:false,
             boss:false
         });
@@ -725,72 +588,36 @@ function loadLevel(n){
     if(L.boss){
 
         const final=
-            L.platforms[
-                L.platforms.length-1
-            ];
+            L.platforms[L.platforms.length-1];
 
-        const secondBoss=
-            level===19;
+        const secondBoss=level===19;
 
-        const bw=
-            secondBoss
-            ?204
-            :170;
-
-        const bh=
-            secondBoss
-            ?288
-            :240;
+        const bw=secondBoss?204:170;
+        const bh=secondBoss?288:240;
 
         enemies.push({
-
-            x:
-                final[0]+
-                final[2]-
-                bw-
-                70,
-
-            y:
-                final[1]-
-                bh,
+            x:final[0]+final[2]-bw-70,
+            y:final[1]-bh,
 
             width:bw,
             height:bh,
 
-            hp:
-                secondBoss
-                ?50
-                :35,
+            hp:secondBoss?50:35,
+            maxHP:secondBoss?50:35,
 
-            maxHP:
-                secondBoss
-                ?50
-                :35,
-
-            damage:
-                secondBoss
-                ?30
-                :20,
-
-            rate:
-                secondBoss
-                ?3.5
-                :3,
+            damage:secondBoss?30:20,
+            rate:secondBoss?3.5:3,
 
             boss:true,
-
             active:false,
 
             attackTimer:0,
-
             warning:false,
             warningTimer:0,
 
             vx:0,
             vy:0,
-
             ground:true,
-
             dead:false
         });
     }
@@ -801,21 +628,11 @@ function loadLevel(n){
     // =================================================
 
     const final=
-        L.platforms[
-            L.platforms.length-1
-        ];
+        L.platforms[L.platforms.length-1];
 
     portal={
-
-        x:
-            final[0]+
-            final[2]-
-            90,
-
-        y:
-            final[1]-
-            75,
-
+        x:final[0]+final[2]-90,
+        y:final[1]-75,
         width:50,
         height:75
     };
@@ -825,19 +642,11 @@ function loadLevel(n){
     // SHOP
     // =================================================
 
-    if(
-        (level+1)%5===0
-    ){
+    if((level+1)%5===0){
 
         shop={
-
-            x:
-                final[0]+
-                190,
-
-            y:
-                final[1]-70,
-
+            x:final[0]+190,
+            y:final[1]-70,
             width:70,
             height:70
         };
@@ -845,21 +654,16 @@ function loadLevel(n){
         createShop();
 
     }else{
-
         shop=null;
         shopItems=[];
     }
 
-
     camera=0;
-
 
     message=
         L.boss
         ?"⚠ BOSS FIGHT!"
-        :L.name+
-         " — LEVEL "+
-         (level+1);
+        :L.name+" — LEVEL "+(level+1);
 
     messageTimer=100;
 }
@@ -876,43 +680,95 @@ function createShop(){
     const available=[
         ...shopPool,
         ...weaponPool
-    ];
+    ].filter(item=>{
+        return item.repeat||
+               !purchasedPermanent.has(item.id);
+    });
 
-    // Don't offer already-owned permanent upgrades.
 
-    const filtered=
-        available.filter(item=>{
+    /*
+     * First decide whether each weapon appears
+     * using its requested probability.
+     *
+     * The probabilities are:
+     *
+     * Uncommon 39%
+     * Rare     25%
+     * Epic     20%
+     * Legendary10%
+     * Mythic    5%
+     * Secret  0.9%
+     * Eternal 0.1%
+     *
+     * Together = 100%.
+     */
 
-            if(
-                !item.repeat &&
-                purchasedPermanent.has(item.id)
+    const weaponRoll=Math.random();
+
+    let total=0;
+    let selectedWeapon=null;
+
+    for(const weapon of weaponPool){
+
+        if(
+            purchasedPermanent.has(
+                weapon.id
             )
-                return false;
+        )
+            continue;
 
-            return true;
-        });
+        total+=weapon.chance;
+
+        if(
+            weaponRoll<total
+        ){
+
+            selectedWeapon=weapon;
+            break;
+        }
+    }
+
+
+    /*
+     * A weapon can occupy one of the three shop
+     * slots. The other slots are normal shop items.
+     */
+    if(selectedWeapon){
+
+        shopItems.push(selectedWeapon);
+    }
+
+
+    const remaining=
+        available.filter(
+            item=>item!==selectedWeapon
+        );
 
 
     while(
         shopItems.length<3 &&
-        filtered.length>0
+        remaining.length
     ){
 
         const index=
             Math.floor(
-                Math.random()*
-                filtered.length
+                Math.random()*remaining.length
             );
 
         shopItems.push(
-            filtered[index]
+            remaining[index]
         );
 
-        filtered.splice(
-            index,
-            1
-        );
+        remaining.splice(index,1);
     }
+
+
+    /*
+     * Shuffle the three choices.
+     */
+    shopItems.sort(
+        ()=>Math.random()-.5
+    );
 }
 
 
@@ -921,9 +777,7 @@ function createShop(){
 // =====================================================
 
 function getShopOpenButton(){
-
     return{
-
         x:W/2-115,
         y:H-155,
         w:230,
@@ -938,60 +792,32 @@ function getShopOpenButton(){
 
 function handleShopTouch(p){
 
-    if(!shopOpen)
-        return;
+    if(!shopOpen)return;
 
-
-    const cardW=
-        Math.min(
-            200,
-            (W-50)/3
-        );
-
+    const cardW=Math.min(200,(W-50)/3);
     const gap=10;
+    const total=cardW*3+gap*2;
+    const start=W/2-total/2;
 
-    const total=
-        cardW*3+
-        gap*2;
+    for(let i=0;i<shopItems.length;i++){
 
-    const start=
-        W/2-total/2;
-
-
-    for(
-        let i=0;
-        i<shopItems.length;
-        i++
-    ){
-
-        const x=
-            start+
-            i*(cardW+gap);
-
+        const x=start+i*(cardW+gap);
         const y=145;
 
         const buyBox={
-
             x:x+10,
             y:y+155,
             w:cardW-20,
             h:55
         };
 
-        if(
-            inside(p,buyBox)
-        ){
-
+        if(inside(p,buyBox)){
             buyShopItem(i);
             return;
         }
     }
 
-
-    // CLOSE
-
     const close={
-
         x:W/2-85,
         y:H-90,
         w:170,
@@ -999,9 +825,7 @@ function handleShopTouch(p){
     };
 
     if(inside(p,close)){
-
         shopOpen=false;
-        return;
     }
 }
 
@@ -1012,28 +836,22 @@ function handleShopTouch(p){
 
 function buyShopItem(index){
 
-    const item=
-        shopItems[index];
+    const item=shopItems[index];
 
-    if(!item)
-        return;
-
+    if(!item)return;
 
     if(score<item.price){
 
-        message=
-            "❌ NOT ENOUGH COINS!";
-
+        message="❌ NOT ENOUGH COINS!";
         messageTimer=55;
-
         return;
     }
 
 
-    // =================================================
-    // BUY
-    // =================================================
-
+    /*
+     * Health/lives are separate.
+     * Buying a life NEVER adds HP.
+     */
     score-=item.price;
 
 
@@ -1041,23 +859,16 @@ function buyShopItem(index){
 
         lives++;
 
-        message=
-            "❤️ +1 LIFE!";
+        message="❤️ +1 LIFE!";
     }
-
 
     else if(item.id==="heal"){
 
-        if(
-            player.hp>=
-            player.maxHP
-        ){
+        if(player.hp>=player.maxHP){
 
             score+=item.price;
 
-            message=
-                "❤️ YOUR HP IS ALREADY FULL!";
-
+            message="❤️ YOUR HP IS ALREADY FULL!";
             messageTimer=55;
 
             return;
@@ -1069,103 +880,71 @@ function buyShopItem(index){
                 player.hp+10
             );
 
-        message=
-            "💚 +10 HP!";
+        message="💚 +10 HP!";
     }
-
 
     else if(item.id==="jump"){
 
         player.jumpPower-=1.5;
 
-        purchasedPermanent.add(
-            item.id
-        );
+        purchasedPermanent.add(item.id);
 
-        message=
-            "🦘 JUMP BOOST!";
+        message="🦘 JUMP BOOST!";
     }
-
 
     else if(item.id==="speed"){
 
         player.speed+=1;
 
-        purchasedPermanent.add(
-            item.id
-        );
+        purchasedPermanent.add(item.id);
 
-        message=
-            "💨 SPEED BOOST!";
+        message="💨 SPEED BOOST!";
     }
-
 
     else if(item.id==="strength"){
 
         swordDamage+=2;
 
-        purchasedPermanent.add(
-            item.id
-        );
+        purchasedPermanent.add(item.id);
 
-        message=
-            "💪 STRENGTH UP!";
+        message="💪 STRENGTH UP!";
     }
-
 
     else if(item.id==="maxhp"){
 
         player.maxHP+=10;
-
         player.hp+=10;
 
-        purchasedPermanent.add(
-            item.id
-        );
+        purchasedPermanent.add(item.id);
 
-        message=
-            "❤️ MAX HP +10!";
+        message="❤️ MAX HP +10!";
     }
-
-
-    // =================================================
-    // WEAPONS
-    // =================================================
 
     else if(item.damage){
 
-        if(
-            item.damage>
-            swordDamage
-        ){
+        /*
+         * Only equip the weapon if it is stronger.
+         */
+        if(item.damage>swordDamage){
 
-            swordDamage=
-                item.damage;
-
-            swordRarity=
-                item.rarity;
+            swordDamage=item.damage;
+            swordRarity=item.rarity;
 
             message=
-                "⚔ "+
-                item.rarity+
-                " SWORD!";
+                "⚔ "+item.name+"!";
+        }else{
+
+            message=
+                "⚔ "+item.name+
+                " purchased!";
         }
 
-        purchasedPermanent.add(
-            item.id
-        );
+        purchasedPermanent.add(item.id);
     }
-
 
     messageTimer=70;
 
-
-    // Remove bought item from current shop.
-
-    shopItems.splice(
-        index,
-        1
-    );
+    shopItems.splice(index,1);
 }
 
 
@@ -1176,7 +955,6 @@ function buyShopItem(index){
 function collision(a,b){
 
     return(
-
         a.x<b.x+b.width &&
         a.x+a.width>b.x &&
         a.y<b.y+b.height &&
@@ -1193,8 +971,7 @@ function moveEntity(e,platforms){
 
     e.vy+=.65;
 
-    if(e.vy>17)
-        e.vy=17;
+    if(e.vy>17)e.vy=17;
 
     const oldY=e.y;
 
@@ -1203,56 +980,35 @@ function moveEntity(e,platforms){
 
     e.ground=false;
 
-
     for(const p of platforms){
 
         const plat={
-
             x:p[0],
             y:p[1],
             width:p[2],
             height:p[3]
         };
 
-
         if(!collision(e,plat))
             continue;
 
-
-        const oldBottom=
-            oldY+e.height;
-
-        const newBottom=
-            e.y+e.height;
-
-
-        // LAND
+        const oldBottom=oldY+e.height;
+        const newBottom=e.y+e.height;
 
         if(
             e.vy>=0 &&
-            oldBottom<=
-            plat.y+12 &&
+            oldBottom<=plat.y+12 &&
             newBottom>=plat.y
         ){
 
-            e.y=
-                plat.y-
-                e.height;
-
+            e.y=plat.y-e.height;
             e.vy=0;
-
             e.ground=true;
         }
 
-
-        // CEILING
-
         else if(e.vy<0){
 
-            e.y=
-                plat.y+
-                plat.height;
-
+            e.y=plat.y+plat.height;
             e.vy=0;
         }
     }
@@ -1274,17 +1030,13 @@ function platformBelow(e,platforms){
             e.x+e.width>p[0] &&
             e.x<p[0]+p[2];
 
-        if(!overlap)
-            continue;
+        if(!overlap)continue;
 
         const d=
             p[1]-
             (e.y+e.height);
 
-        if(
-            d>=-10 &&
-            d<closest
-        ){
+        if(d>=-10&&d<closest){
 
             closest=d;
             result=p;
@@ -1296,22 +1048,18 @@ function platformBelow(e,platforms){
 
 
 // =====================================================
-// PLAYER DAMAGE
+// DAMAGE PLAYER
 // =====================================================
 
 function damagePlayer(amount){
 
-    if(gameOver||gameWon)
-        return;
-
+    if(gameOver||gameWon)return;
 
     player.hp-=amount;
-
 
     if(player.hp<=0){
 
         lives--;
-
 
         if(lives<=0){
 
@@ -1319,25 +1067,19 @@ function damagePlayer(amount){
             return;
         }
 
-
-        // Respawn at beginning of CURRENT LEVEL.
-
+        /*
+         * Respawn at beginning of CURRENT LEVEL.
+         * HP is completely restored.
+         */
         player.x=80;
         player.y=250;
-
         player.vx=0;
         player.vy=0;
-
-        // Full HP after respawn.
-
-        player.hp=
-            player.maxHP;
+        player.hp=player.maxHP;
 
         camera=0;
 
-        message=
-            "💥 RESPAWN!";
-
+        message="💥 RESPAWN!";
         messageTimer=80;
     }
 }
@@ -1349,69 +1091,43 @@ function damagePlayer(amount){
 
 function attack(){
 
-    if(gameOver||gameWon)
-        return;
+    if(gameOver||gameWon)return;
 
-
-    // 0.5 SECOND ATTACK COOLDOWN
-
-    if(player.attackCooldown>0)
-        return;
-
+    /*
+     * Attack every 0.5 seconds.
+     */
+    if(player.attackCooldown>0)return;
 
     player.attackCooldown=.5;
 
     player.attacking=true;
     player.attackTimer=.22;
 
-
     const facing=
-        player.vx<0
-        ?-1
-        :1;
-
+        player.vx<0?-1:1;
 
     for(const enemy of enemies){
 
-        if(enemy.dead)
-            continue;
+        if(enemy.dead)continue;
 
-
-        // Boss cannot be stomped.
-        // Sword is required.
-
-        const dx=
-            enemy.x-player.x;
-
-        const dy=
-            Math.abs(
-                enemy.y-player.y
-            );
+        const dx=enemy.x-player.x;
+        const dy=Math.abs(enemy.y-player.y);
 
         const inFront=
             dx*facing>=-25 &&
             dx*facing<=115;
 
-
-        if(
-            inFront &&
-            dy<130
-        ){
+        if(inFront&&dy<130){
 
             enemy.hp-=swordDamage;
-
 
             if(enemy.hp<=0){
 
                 enemy.dead=true;
-
                 monstersKilled++;
-
                 score++;
 
-                message=
-                    "+1 MONSTER!";
-
+                message="+1 MONSTER!";
                 messageTimer=25;
             }
         }
@@ -1425,8 +1141,7 @@ function attack(){
 
 function updateEnemy(e,L,dt){
 
-    if(e.dead)
-        return;
+    if(e.dead)return;
 
 
     // =================================================
@@ -1436,21 +1151,14 @@ function updateEnemy(e,L,dt){
     if(e.boss){
 
         if(
-            Math.abs(
-                player.x-e.x
-            )<750
+            Math.abs(player.x-e.x)<750
         ){
-
             e.active=true;
         }
 
-
-        if(!e.active)
-            return;
-
+        if(!e.active)return;
 
         e.attackTimer+=dt;
-
 
         if(
             e.attackTimer>=e.rate &&
@@ -1458,87 +1166,58 @@ function updateEnemy(e,L,dt){
         ){
 
             e.attackTimer=0;
-
             e.warning=true;
-
             e.warningTimer=.5;
         }
-
 
         if(e.warning){
 
             e.warningTimer-=dt;
 
-
-            if(
-                e.warningTimer<=0
-            ){
+            if(e.warningTimer<=0){
 
                 e.warning=false;
 
-
                 const center=
-                    e.x+
-                    e.width/2;
+                    e.x+e.width/2;
 
                 const pc=
-                    player.x+
-                    player.width/2;
-
-
-                // Boss attack is only directly
-                // in front of the boss.
+                    player.x+player.width/2;
 
                 if(
-                    Math.abs(
-                        pc-center
-                    )<
+                    Math.abs(pc-center)<
                     e.width/2+120
                 ){
-
-                    damagePlayer(
-                        e.damage
-                    );
+                    damagePlayer(e.damage);
                 }
             }
         }
 
-
         return;
     }
 
 
     // =================================================
-    // NORMAL MONSTER
+    // NORMAL MONSTERS
     // =================================================
 
-    const dx=
-        player.x-e.x;
+    const dx=player.x-e.x;
+    const distance=Math.abs(dx);
 
-    const distance=
-        Math.abs(dx);
-
-
-    if(
-        !e.active &&
-        distance<550
-    ){
-
+    if(!e.active&&distance<550)
         e.active=true;
-    }
+
+    if(!e.active)return;
 
 
-    if(!e.active)
-        return;
-
-
-    // If the monster falls into the void,
-    // permanently remove it.
-
-    if(
-        e.y>
-        H+700
-    ){
+    /*
+     * If a monster falls into the void,
+     * it is permanently removed.
+     *
+     * This prevents a fallen monster from
+     * attacking the player from below.
+     */
+    if(e.y>H+700){
 
         e.dead=true;
         return;
@@ -1554,32 +1233,21 @@ function updateEnemy(e,L,dt){
     }
 
 
-    const dir=
-        dx>0
-        ?1
-        :-1;
+    const dir=dx>0?1:-1;
 
-
-    e.vx=
-        dir*e.speed;
+    e.vx=dir*e.speed;
 
 
     const monsterPlatform=
-        platformBelow(
-            e,
-            L.platforms
-        );
+        platformBelow(e,L.platforms);
 
     const playerPlatform=
-        platformBelow(
-            player,
-            L.platforms
-        );
+        platformBelow(player,L.platforms);
 
 
-    // Jump UP when the player is on
-    // a higher platform.
-
+    /*
+     * Jump to higher platforms.
+     */
     if(
         e.ground &&
         monsterPlatform &&
@@ -1587,38 +1255,24 @@ function updateEnemy(e,L,dt){
         playerPlatform[1]<
         monsterPlatform[1]-25
     ){
-
         e.vy=-12;
     }
 
 
-    moveEntity(
-        e,
-        L.platforms
-    );
+    moveEntity(e,L.platforms);
 
 
-    // Only attack if physically close.
-
-    if(
-        collision(
-            player,
-            e
-        )
-    ){
+    /*
+     * Attack only when physically close.
+     */
+    if(collision(player,e)){
 
         e.attackTimer+=dt;
 
-
-        if(
-            e.attackTimer>=e.rate
-        ){
+        if(e.attackTimer>=e.rate){
 
             e.attackTimer=0;
-
-            damagePlayer(
-                e.damage
-            );
+            damagePlayer(e.damage);
         }
 
     }else{
@@ -1634,30 +1288,18 @@ function updateEnemy(e,L,dt){
 
 function update(){
 
-    const now=
-        performance.now();
+    const now=performance.now();
 
-    let dt=
-        (now-lastTime)/1000;
+    let dt=(now-lastTime)/1000;
 
     lastTime=now;
 
-    dt=
-        Math.min(dt,.05);
+    dt=Math.min(dt,.05);
 
+    if(gameOver||gameWon)return;
+    if(shopOpen)return;
 
-    if(gameOver||gameWon)
-        return;
-
-
-    // Don't control player while shop is open.
-
-    if(shopOpen)
-        return;
-
-
-    const L=
-        levels[level];
+    const L=levels[level];
 
 
     // =================================================
@@ -1666,22 +1308,12 @@ function update(){
 
     nearShop=false;
 
-
     if(shop){
 
-        const dx=
-            Math.abs(
-                player.x-shop.x
-            );
+        const dx=Math.abs(player.x-shop.x);
+        const dy=Math.abs(player.y-shop.y);
 
-        const dy=
-            Math.abs(
-                player.y-shop.y
-            );
-
-        nearShop=
-            dx<170 &&
-            dy<150;
+        nearShop=dx<170&&dy<150;
     }
 
 
@@ -1689,60 +1321,35 @@ function update(){
     // CONTROLS
     // =================================================
 
-    const left=
-        keyLeft||
-        touchLeft;
-
-    const right=
-        keyRight||
-        touchRight;
-
-    const jump=
-        keyJump||
-        touchJump;
-
-    const attacking=
-        keyAttack||
-        touchAttack;
+    const left=keyLeft||touchLeft;
+    const right=keyRight||touchRight;
+    const jump=keyJump||touchJump;
+    const attacking=keyAttack||touchAttack;
 
 
     // =================================================
     // MOVEMENT
     // =================================================
 
-    if(left)
-        player.vx-=.8;
-
-    if(right)
-        player.vx+=.8;
-
+    if(left)player.vx-=.8;
+    if(right)player.vx+=.8;
 
     if(!left&&!right)
         player.vx*=.82;
 
-
-    player.vx=
-        Math.max(
-            -player.speed,
-            Math.min(
-                player.speed,
-                player.vx
-            )
-        );
+    player.vx=Math.max(
+        -player.speed,
+        Math.min(player.speed,player.vx)
+    );
 
 
     // =================================================
     // JUMP
     // =================================================
 
-    if(
-        jump &&
-        player.ground
-    ){
+    if(jump&&player.ground){
 
-        player.vy=
-            player.jumpPower;
-
+        player.vy=player.jumpPower;
         player.ground=false;
     }
 
@@ -1754,30 +1361,20 @@ function update(){
     if(attacking)
         attack();
 
-
-    if(
-        player.attackCooldown>0
-    ){
+    if(player.attackCooldown>0){
 
         player.attackCooldown-=dt;
 
-        if(
-            player.attackCooldown<0
-        )
+        if(player.attackCooldown<0)
             player.attackCooldown=0;
     }
-
 
     if(player.attacking){
 
         player.attackTimer-=dt;
 
-        if(
-            player.attackTimer<=0
-        ){
-
+        if(player.attackTimer<=0)
             player.attacking=false;
-        }
     }
 
 
@@ -1785,17 +1382,9 @@ function update(){
     // PLAYER PHYSICS
     // =================================================
 
-    moveEntity(
-        player,
-        L.platforms
-    );
+    moveEntity(player,L.platforms);
 
-
-    player.x=
-        Math.max(
-            0,
-            player.x
-        );
+    player.x=Math.max(0,player.x);
 
 
     // =================================================
@@ -1804,22 +1393,12 @@ function update(){
 
     for(const c of coins){
 
-        if(c.collected)
-            continue;
+        if(c.collected)continue;
 
-
-        const d=
-            Math.hypot(
-
-                player.x+
-                player.width/2-
-                c.x,
-
-                player.y+
-                player.height/2-
-                c.y
-            );
-
+        const d=Math.hypot(
+            player.x+player.width/2-c.x,
+            player.y+player.height/2-c.y
+        );
 
         if(d<35){
 
@@ -1828,9 +1407,7 @@ function update(){
             score++;
             totalCoins++;
 
-            message=
-                "+1 COIN!";
-
+            message="+1 COIN!";
             messageTimer=30;
         }
     }
@@ -1840,20 +1417,10 @@ function update(){
     // ENEMIES
     // =================================================
 
-    for(const e of enemies){
+    for(const e of enemies)
+        updateEnemy(e,L,dt);
 
-        updateEnemy(
-            e,
-            L,
-            dt
-        );
-    }
-
-
-    enemies=
-        enemies.filter(
-            e=>!e.dead
-        );
+    enemies=enemies.filter(e=>!e.dead);
 
 
     // =================================================
@@ -1861,24 +1428,16 @@ function update(){
     // =================================================
 
     const bossAlive=
-        enemies.some(
-            e=>e.boss
-        );
-
+        enemies.some(e=>e.boss);
 
     if(
-        collision(
-            player,
-            portal
-        ) &&
+        collision(player,portal)&&
         !bossAlive
     ){
 
         if(level<19){
 
-            loadLevel(
-                level+1
-            );
+            loadLevel(level+1);
 
         }else{
 
@@ -1891,15 +1450,8 @@ function update(){
     // FALL
     // =================================================
 
-    if(
-        player.y>
-        H+500
-    ){
-
-        damagePlayer(
-            player.maxHP
-        );
-    }
+    if(player.y>H+500)
+        damagePlayer(player.maxHP);
 
 
     // =================================================
@@ -1907,36 +1459,22 @@ function update(){
     // =================================================
 
     const final=
-        L.platforms[
-            L.platforms.length-1
-        ];
+        L.platforms[L.platforms.length-1];
 
     const worldWidth=
-        final[0]+
-        final[2]+
-        150;
+        final[0]+final[2]+150;
 
+    camera+=(
+        player.x-W*.35-camera
+    )*.1;
 
-    camera+=
-        (
-            player.x-
-            W*.35-
+    camera=Math.max(
+        0,
+        Math.min(
+            Math.max(0,worldWidth-W),
             camera
-        )*.1;
-
-
-    camera=
-        Math.max(
-            0,
-            Math.min(
-                Math.max(
-                    0,
-                    worldWidth-W
-                ),
-                camera
-            )
-        );
-
+        )
+    );
 
     if(messageTimer>0)
         messageTimer--;
@@ -1949,118 +1487,60 @@ function update(){
 
 function draw(){
 
-    const L=
-        levels[level];
+    const L=levels[level];
 
 
-    // =================================================
     // SKY
-    // =================================================
 
     const gradient=
-        ctx.createLinearGradient(
-            0,0,0,H
-        );
+        ctx.createLinearGradient(0,0,0,H);
 
-    gradient.addColorStop(
-        0,
-        L.sky1
-    );
-
-    gradient.addColorStop(
-        1,
-        L.sky2
-    );
+    gradient.addColorStop(0,L.sky1);
+    gradient.addColorStop(1,L.sky2);
 
     ctx.fillStyle=gradient;
-
-    ctx.fillRect(
-        0,
-        0,
-        W,
-        H
-    );
-
+    ctx.fillRect(0,0,W,H);
 
     ctx.save();
-
-    ctx.translate(
-        -camera,
-        0
-    );
+    ctx.translate(-camera,0);
 
 
-    // =================================================
     // BACKGROUND
-    // =================================================
 
-    ctx.fillStyle=
-        "rgba(255,255,255,.13)";
+    ctx.fillStyle="rgba(255,255,255,.13)";
 
-    for(
-        let i=-2;
-        i<20;
-        i++
-    ){
+    for(let i=-2;i<20;i++){
 
         ctx.beginPath();
 
-        ctx.moveTo(
-            i*600,
-            700
-        );
-
-        ctx.lineTo(
-            i*600+300,
-            180
-        );
-
-        ctx.lineTo(
-            i*600+650,
-            700
-        );
+        ctx.moveTo(i*600,700);
+        ctx.lineTo(i*600+300,180);
+        ctx.lineTo(i*600+650,700);
 
         ctx.fill();
     }
 
 
-    // =================================================
     // PLATFORMS
-    // =================================================
 
     for(const p of L.platforms){
 
-        ctx.fillStyle=
-            "#263244";
+        ctx.fillStyle="#263244";
 
         ctx.fillRect(
-            p[0],
-            p[1],
-            p[2],
-            p[3]
+            p[0],p[1],p[2],p[3]
         );
 
-
         ctx.fillStyle=
-            level>=15
-            ?" #fb923c"
-            :" #22c55e";
-
-        ctx.fillStyle=
-            ctx.fillStyle.trim();
+            level>=15?"#fb923c":"#22c55e";
 
         ctx.fillRect(
-            p[0],
-            p[1],
-            p[2],
-            7
+            p[0],p[1],p[2],7
         );
     }
 
 
-    // =================================================
-    // SHOP BUILDING
-    // =================================================
+    // SHOP
 
     if(shop){
 
@@ -2083,16 +1563,12 @@ function draw(){
         );
 
         ctx.fillStyle="white";
-
-        ctx.font=
-            "bold 18px Arial";
-
+        ctx.font="bold 18px Arial";
         ctx.textAlign="center";
 
         ctx.fillText(
             "SHOP",
-            shop.x+
-            shop.width/2,
+            shop.x+shop.width/2,
             shop.y+45
         );
 
@@ -2100,92 +1576,56 @@ function draw(){
     }
 
 
-    // =================================================
     // COINS
-    // =================================================
 
     for(const c of coins){
 
-        if(c.collected)
-            continue;
+        if(c.collected)continue;
 
-
-        ctx.fillStyle=
-            "#facc15";
+        ctx.fillStyle="#facc15";
 
         ctx.beginPath();
 
-        ctx.arc(
-            c.x,
-            c.y,
-            11,
-            0,
-            Math.PI*2
-        );
-
+        ctx.arc(c.x,c.y,11,0,Math.PI*2);
         ctx.fill();
-
 
         ctx.fillStyle="white";
 
         ctx.beginPath();
 
-        ctx.arc(
-            c.x-3,
-            c.y-3,
-            3,
-            0,
-            Math.PI*2
-        );
-
+        ctx.arc(c.x-3,c.y-3,3,0,Math.PI*2);
         ctx.fill();
     }
 
 
-    // =================================================
     // MONSTERS
-    // =================================================
 
     for(const e of enemies){
 
         if(e.boss){
-
             drawBoss(e);
-
             continue;
         }
 
-
-        ctx.fillStyle=
-            e.color;
+        ctx.fillStyle=e.color;
 
         ctx.fillRect(
-            e.x,
-            e.y,
-            e.width,
-            e.height
+            e.x,e.y,e.width,e.height
         );
 
-
-        ctx.fillStyle=
-            "#111827";
-
+        ctx.fillStyle="#111827";
 
         ctx.fillRect(
             e.x+e.width*.2,
             e.y+e.height*.2,
-            7,
-            7
+            7,7
         );
-
 
         ctx.fillRect(
             e.x+e.width*.6,
             e.y+e.height*.2,
-            7,
-            7
+            7,7
         );
-
 
         drawHealth(
             e.x,
@@ -2198,15 +1638,10 @@ function draw(){
     }
 
 
-    // =================================================
-    // PORTAL / FLAG
-    // =================================================
+    // PORTAL
 
     const bossAlive=
-        enemies.some(
-            e=>e.boss
-        );
-
+        enemies.some(e=>e.boss);
 
     ctx.fillStyle="white";
 
@@ -2217,15 +1652,8 @@ function draw(){
         portal.height
     );
 
-
     ctx.fillStyle=
-        bossAlive
-        ?" #64748b"
-        :" #a855f7";
-
-    ctx.fillStyle=
-        ctx.fillStyle.trim();
-
+        bossAlive?"#64748b":"#a855f7";
 
     ctx.beginPath();
 
@@ -2248,27 +1676,19 @@ function draw(){
 
     ctx.fill();
 
-
     ctx.fillStyle="white";
-
-    ctx.font=
-        "bold 13px Arial";
+    ctx.font="bold 13px Arial";
 
     ctx.fillText(
-        bossAlive
-        ?"DEFEAT BOSS"
-        :"NEXT LEVEL",
+        bossAlive?"DEFEAT BOSS":"NEXT LEVEL",
         portal.x-20,
         portal.y-12
     );
 
 
-    // =================================================
     // PLAYER
-    // =================================================
 
-    ctx.fillStyle=
-        "#7c3aed";
+    ctx.fillStyle="#7c3aed";
 
     ctx.fillRect(
         player.x,
@@ -2277,26 +1697,23 @@ function draw(){
         player.height
     );
 
-
     ctx.fillStyle="white";
 
     ctx.fillRect(
         player.x+6,
         player.y+10,
-        7,
-        7
+        7,7
     );
 
     ctx.fillRect(
         player.x+20,
         player.y+10,
-        7,
-        7
+        7,7
     );
 
 
     // =================================================
-    // SWORD
+    // SWORD SLASH
     // =================================================
 
     if(player.attacking){
@@ -2304,48 +1721,60 @@ function draw(){
         ctx.save();
 
         const facing=
-            player.vx<0
-            ?-1
-            :1;
-
+            player.vx<0?-1:1;
 
         ctx.translate(
-            player.x+
-            player.width/2,
-            player.y+
-            player.height/2
+            player.x+player.width/2,
+            player.y+player.height/2
         );
 
-
         const progress=
-            1-
-            player.attackTimer/.22;
-
+            1-player.attackTimer/.22;
 
         ctx.rotate(
             facing*
-            (-1.1+
-            progress*2.2)
+            (-1.1+progress*2.2)
         );
 
 
-        // Blade
+        /*
+         * Eternal Sword:
+         * black outside + red middle.
+         */
+        if(swordRarity==="???"){
 
-        ctx.fillStyle=
-            swordColor();
+            ctx.fillStyle="#050505";
 
-        ctx.fillRect(
-            facing*5,
-            -5,
-            facing*65,
-            10
-        );
+            ctx.fillRect(
+                facing*5,
+                -9,
+                facing*75,
+                18
+            );
+
+            ctx.fillStyle="#ef0000";
+
+            ctx.fillRect(
+                facing*5,
+                -4,
+                facing*75,
+                8
+            );
+
+        }else{
+
+            ctx.fillStyle=swordColor();
+
+            ctx.fillRect(
+                facing*5,
+                -5,
+                facing*65,
+                10
+            );
+        }
 
 
-        // Handle
-
-        ctx.fillStyle=
-            "#78350f";
+        ctx.fillStyle="#78350f";
 
         ctx.fillRect(
             facing*-10,
@@ -2354,24 +1783,17 @@ function draw(){
             8
         );
 
-
         ctx.restore();
     }
 
 
-    // =================================================
     // BOSS WARNING
-    // =================================================
 
     for(const e of enemies){
 
-        if(
-            e.boss &&
-            e.warning
-        ){
+        if(e.boss&&e.warning){
 
-            ctx.fillStyle=
-                "rgba(255,0,0,.3)";
+            ctx.fillStyle="rgba(255,0,0,.3)";
 
             ctx.fillRect(
                 e.x-120,
@@ -2381,9 +1803,7 @@ function draw(){
             );
 
             ctx.fillStyle="white";
-
-            ctx.font=
-                "bold 20px Arial";
+            ctx.font="bold 20px Arial";
 
             ctx.fillText(
                 "⚠ INCOMING ATTACK!",
@@ -2393,64 +1813,35 @@ function draw(){
         }
     }
 
-
     ctx.restore();
 
 
-    // =================================================
-    // HUD
-    // =================================================
-
     drawHUD();
-
-
-    // =================================================
-    // CONTROLS
-    // =================================================
-
     drawControls();
 
 
-    // =================================================
-    // SHOP BUTTON
-    // =================================================
+    // SHOP OPEN BUTTON
 
-    if(
-        nearShop &&
-        !shopOpen
-    ){
+    if(nearShop&&!shopOpen){
 
-        const b=
-            getShopOpenButton();
+        const b=getShopOpenButton();
 
-        ctx.fillStyle=
-            "rgba(0,0,0,.75)";
+        ctx.fillStyle="rgba(0,0,0,.75)";
 
         ctx.fillRect(
-            b.x,
-            b.y,
-            b.w,
-            b.h
+            b.x,b.y,b.w,b.h
         );
 
-        ctx.strokeStyle=
-            "#fbbf24";
-
+        ctx.strokeStyle="#fbbf24";
         ctx.lineWidth=3;
 
         ctx.strokeRect(
-            b.x,
-            b.y,
-            b.w,
-            b.h
+            b.x,b.y,b.w,b.h
         );
 
         ctx.fillStyle="white";
-
         ctx.textAlign="center";
-
-        ctx.font=
-            "bold 20px Arial";
+        ctx.font="bold 20px Arial";
 
         ctx.fillText(
             "🏪 TAP TO SHOP",
@@ -2462,14 +1853,11 @@ function draw(){
     }
 
 
-    // =================================================
     // MESSAGE
-    // =================================================
 
     if(messageTimer>0){
 
-        ctx.fillStyle=
-            "rgba(0,0,0,.65)";
+        ctx.fillStyle="rgba(0,0,0,.65)";
 
         ctx.fillRect(
             W/2-155,
@@ -2479,11 +1867,8 @@ function draw(){
         );
 
         ctx.fillStyle="white";
-
         ctx.textAlign="center";
-
-        ctx.font=
-            "bold 20px Arial";
+        ctx.font="bold 20px Arial";
 
         ctx.fillText(
             message,
@@ -2495,48 +1880,11 @@ function draw(){
     }
 
 
-    // =================================================
-    // SHOP SCREEN
-    // =================================================
-
     if(shopOpen)
         drawShop();
 
-
-    // =================================================
-    // GAME OVER
-    // =================================================
-
     if(gameOver||gameWon)
         drawEndScreen();
-}
-
-
-// =====================================================
-// SWORD COLORS
-// =====================================================
-
-function swordColor(){
-
-    if(swordRarity==="COMMON")
-        return "#9ca3af";
-
-    if(swordRarity==="UNCOMMON")
-        return "#22c55e";
-
-    if(swordRarity==="RARE")
-        return "#3b82f6";
-
-    if(swordRarity==="EPIC")
-        return "#a855f7";
-
-    if(swordRarity==="LEGENDARY")
-        return "#facc15";
-
-    if(swordRarity==="MYTHIC")
-        return "#ef4444";
-
-    return "#9ca3af";
 }
 
 
@@ -2547,37 +1895,25 @@ function swordColor(){
 function drawBoss(b){
 
     ctx.fillStyle=
-        b.maxHP===50
-        ?" #dc2626"
-        :" #b45309";
-
-    ctx.fillStyle=
-        ctx.fillStyle.trim();
+        b.maxHP===50?"#dc2626":"#b45309";
 
     ctx.fillRect(
-        b.x,
-        b.y,
-        b.width,
-        b.height
+        b.x,b.y,b.width,b.height
     );
-
 
     ctx.fillStyle="white";
 
     ctx.fillRect(
         b.x+b.width*.2,
         b.y+b.height*.2,
-        20,
-        20
+        20,20
     );
 
     ctx.fillRect(
         b.x+b.width*.65,
         b.y+b.height*.2,
-        20,
-        20
+        20,20
     );
-
 
     drawHealth(
         b.x,
@@ -2594,29 +1930,18 @@ function drawBoss(b){
 // HEALTH BAR
 // =====================================================
 
-function drawHealth(
-    x,y,w,h,hp,max
-){
+function drawHealth(x,y,w,h,hp,max){
 
     ctx.fillStyle="#111827";
 
-    ctx.fillRect(
-        x,
-        y,
-        w,
-        h
-    );
+    ctx.fillRect(x,y,w,h);
 
     ctx.fillStyle="#22c55e";
 
     ctx.fillRect(
         x,
         y,
-        w*
-        Math.max(
-            0,
-            hp/max
-        ),
+        w*Math.max(0,hp/max),
         h
     );
 }
@@ -2628,79 +1953,56 @@ function drawHealth(
 
 function drawHUD(){
 
-    const width=
-        Math.min(
-            450,
-            W-20
-        );
+    const width=Math.min(450,W-20);
 
-    ctx.fillStyle=
-        "rgba(0,0,0,.6)";
+    ctx.fillStyle="rgba(0,0,0,.6)";
 
     ctx.fillRect(
-        10,
-        10,
-        width,
-        125
+        10,10,width,125
     );
-
 
     ctx.fillStyle="white";
-
-    ctx.font=
-        "bold 17px Arial";
+    ctx.font="bold 17px Arial";
 
     ctx.fillText(
-        "LEVEL "+
-        (level+1)+
+        "LEVEL "+(level+1)+
         " / 20 — "+
         levels[level].name,
-        22,
-        35
+        22,35
     );
-
 
     ctx.font="14px Arial";
 
     ctx.fillText(
         "❤️ HP: "+
-        player.hp+
-        " / "+
-        player.maxHP,
-        22,
-        60
+        player.hp+" / "+player.maxHP,
+        22,60
     );
 
     ctx.fillText(
-        "💗 Lives: "+
-        lives,
-        22,
-        83
+        "💗 Lives: "+lives,
+        22,83
     );
 
     ctx.fillText(
-        "🪙 Coins: "+
-        score,
-        135,
-        83
+        "🪙 Coins: "+score,
+        135,83
     );
 
     ctx.fillText(
-        "☠ Kills: "+
-        monstersKilled,
-        250,
-        83
+        "☠ Kills: "+monstersKilled,
+        250,83
     );
 
+    ctx.fillStyle=swordColor();
+
     ctx.fillText(
-        "⚔ "+
-        swordRarity+
-        " — "+
-        swordDamage+
-        " DMG",
-        22,
-        108
+        "⚔ "+swordRarity+
+        " — "+swordDamage+" DMG",
+        22,108
     );
+
+    ctx.fillStyle="white";
 }
 
 
@@ -2710,38 +2012,16 @@ function drawHUD(){
 
 function drawControls(){
 
-    const b=
-        getButtons();
+    const b=getButtons();
 
-
-    drawControl(
-        b.left,
-        touchLeft
-    );
-
-    drawControl(
-        b.right,
-        touchRight
-    );
-
-    drawControl(
-        b.jump,
-        touchJump
-    );
-
-    drawControl(
-        b.attack,
-        touchAttack
-    );
-
+    drawControl(b.left,touchLeft);
+    drawControl(b.right,touchRight);
+    drawControl(b.jump,touchJump);
+    drawControl(b.attack,touchAttack);
 
     ctx.textAlign="center";
-
     ctx.fillStyle="white";
-
-    ctx.font=
-        "bold 35px Arial";
-
+    ctx.font="bold 35px Arial";
 
     ctx.fillText(
         "◀",
@@ -2749,13 +2029,11 @@ function drawControls(){
         b.left.y+48
     );
 
-
     ctx.fillText(
         "▶",
         b.right.x+b.right.w/2,
         b.right.y+48
     );
-
 
     ctx.fillText(
         "▲",
@@ -2763,10 +2041,7 @@ function drawControls(){
         b.jump.y+48
     );
 
-
-    ctx.font=
-        "bold 27px Arial";
-
+    ctx.font="bold 27px Arial";
 
     ctx.fillText(
         "⚔",
@@ -2774,10 +2049,8 @@ function drawControls(){
         b.attack.y+48
     );
 
-
     ctx.textAlign="left";
 }
-
 
 function drawControl(b,active){
 
@@ -2786,19 +2059,13 @@ function drawControl(b,active){
         ?"rgba(255,255,255,.45)"
         :"rgba(255,255,255,.18)";
 
-    ctx.strokeStyle=
-        "rgba(255,255,255,.75)";
-
+    ctx.strokeStyle="rgba(255,255,255,.75)";
     ctx.lineWidth=2;
 
     ctx.beginPath();
 
     ctx.roundRect(
-        b.x,
-        b.y,
-        b.w,
-        b.h,
-        20
+        b.x,b.y,b.w,b.h,20
     );
 
     ctx.fill();
@@ -2812,103 +2079,64 @@ function drawControl(b,active){
 
 function drawShop(){
 
-    ctx.fillStyle=
-        "rgba(0,0,0,.88)";
+    ctx.fillStyle="rgba(0,0,0,.88)";
 
     ctx.fillRect(
-        0,
-        0,
-        W,
-        H
+        0,0,W,H
     );
 
-
     ctx.fillStyle="white";
-
     ctx.textAlign="center";
-
-    ctx.font=
-        "bold 32px Arial";
+    ctx.font="bold 32px Arial";
 
     ctx.fillText(
         "🏪 SHOP",
-        W/2,
-        55
+        W/2,55
     );
-
 
     ctx.font="17px Arial";
 
     ctx.fillText(
-        "🪙 Coins: "+
-        score,
-        W/2,
-        85
+        "🪙 Coins: "+score,
+        W/2,85
     );
 
 
-    const cardW=
-        Math.min(
-            200,
-            (W-50)/3
-        );
-
+    const cardW=Math.min(200,(W-50)/3);
     const gap=10;
-
-    const total=
-        cardW*3+
-        gap*2;
-
-    const start=
-        W/2-total/2;
+    const total=cardW*3+gap*2;
+    const start=W/2-total/2;
 
 
-    for(
-        let i=0;
-        i<shopItems.length;
-        i++
-    ){
+    for(let i=0;i<shopItems.length;i++){
 
-        const item=
-            shopItems[i];
+        const item=shopItems[i];
 
-        const x=
-            start+
-            i*(cardW+gap);
-
+        const x=start+i*(cardW+gap);
         const y=125;
 
 
-        ctx.fillStyle=
-            "rgba(255,255,255,.12)";
+        ctx.fillStyle="rgba(255,255,255,.12)";
 
         ctx.fillRect(
-            x,
-            y,
-            cardW,
-            245
+            x,y,cardW,245
         );
 
 
         ctx.strokeStyle=
             item.damage
-            ?swordColor()
+            ?rarityColor(item.rarity)
             :"rgba(255,255,255,.35)";
 
         ctx.lineWidth=3;
 
         ctx.strokeRect(
-            x,
-            y,
-            cardW,
-            245
+            x,y,cardW,245
         );
 
 
         ctx.fillStyle="white";
-
-        ctx.font=
-            "bold 16px Arial";
+        ctx.font="bold 16px Arial";
 
         ctx.fillText(
             item.name,
@@ -2920,7 +2148,7 @@ function drawShop(){
         ctx.font="13px Arial";
 
         ctx.fillText(
-            item.description,
+            item.description||"",
             x+cardW/2,
             y+75
         );
@@ -2928,11 +2156,13 @@ function drawShop(){
 
         if(item.damage){
 
+            /*
+             * Display Eternal as ??? rarity.
+             */
             ctx.fillStyle=
-                swordColor();
+                rarityColor(item.rarity);
 
-            ctx.font=
-                "bold 18px Arial";
+            ctx.font="bold 18px Arial";
 
             ctx.fillText(
                 item.rarity+
@@ -2946,13 +2176,10 @@ function drawShop(){
 
 
         ctx.fillStyle="white";
-
-        ctx.font=
-            "bold 18px Arial";
+        ctx.font="bold 18px Arial";
 
         ctx.fillText(
-            "🪙 "+
-            item.price,
+            "🪙 "+item.price,
             x+cardW/2,
             y+145
         );
@@ -2961,12 +2188,10 @@ function drawShop(){
         const affordable=
             score>=item.price;
 
-
         ctx.fillStyle=
             affordable
             ?"rgba(34,197,94,.85)"
             :"rgba(90,90,90,.7)";
-
 
         ctx.fillRect(
             x+10,
@@ -2975,27 +2200,18 @@ function drawShop(){
             55
         );
 
-
         ctx.fillStyle="white";
-
-        ctx.font=
-            "bold 16px Arial";
-
+        ctx.font="bold 16px Arial";
 
         ctx.fillText(
-            affordable
-            ?"BUY"
-            :"CAN'T AFFORD",
+            affordable?"BUY":"CAN'T AFFORD",
             x+cardW/2,
             y+205
         );
     }
 
 
-    // CLOSE BUTTON
-
-    ctx.fillStyle=
-        "rgba(239,68,68,.85)";
+    ctx.fillStyle="rgba(239,68,68,.85)";
 
     ctx.fillRect(
         W/2-85,
@@ -3004,18 +2220,14 @@ function drawShop(){
         55
     );
 
-
     ctx.fillStyle="white";
-
-    ctx.font=
-        "bold 18px Arial";
+    ctx.font="bold 18px Arial";
 
     ctx.fillText(
         "CLOSE",
         W/2,
         H-55
     );
-
 
     ctx.textAlign="left";
 }
@@ -3027,24 +2239,15 @@ function drawShop(){
 
 function drawEndScreen(){
 
-    ctx.fillStyle=
-        "rgba(0,0,0,.87)";
+    ctx.fillStyle="rgba(0,0,0,.87)";
 
     ctx.fillRect(
-        0,
-        0,
-        W,
-        H
+        0,0,W,H
     );
 
-
     ctx.fillStyle="white";
-
     ctx.textAlign="center";
-
-    ctx.font=
-        "bold 30px Arial";
-
+    ctx.font="bold 30px Arial";
 
     ctx.fillText(
         gameWon
@@ -3054,51 +2257,34 @@ function drawEndScreen(){
         H/2-115
     );
 
-
     ctx.font="19px Arial";
 
-
     ctx.fillText(
-        "Level reached: "+
-        (level+1),
-        W/2,
-        H/2-65
+        "Level reached: "+(level+1),
+        W/2,H/2-65
     );
 
-
     ctx.fillText(
-        "🪙 Total coins: "+
-        totalCoins,
-        W/2,
-        H/2-30
+        "🪙 Total coins: "+totalCoins,
+        W/2,H/2-30
     );
 
-
     ctx.fillText(
-        "☠ Monsters defeated: "+
-        monstersKilled,
-        W/2,
-        H/2+5
+        "☠ Monsters defeated: "+monstersKilled,
+        W/2,H/2+5
     );
-
 
     ctx.fillText(
         "⚔ Sword: "+
         swordRarity+
-        " ("+
-        swordDamage+
-        " damage)",
-        W/2,
-        H/2+40
+        " ("+swordDamage+" damage)",
+        W/2,H/2+40
     );
-
 
     ctx.fillText(
         "Press R to play again",
-        W/2,
-        H/2+90
+        W/2,H/2+90
     );
-
 
     ctx.textAlign="left";
 }
@@ -3113,15 +2299,12 @@ function restart(){
     level=0;
 
     score=0;
-
     totalCoins=0;
-
     monstersKilled=0;
 
     lives=3;
 
     swordDamage=3;
-
     swordRarity="COMMON";
 
     purchasedPermanent.clear();
@@ -3130,7 +2313,6 @@ function restart(){
 
     gameOver=false;
     gameWon=false;
-
     shopOpen=false;
 
     loadLevel(0);
@@ -3153,14 +2335,11 @@ function gameLoop(){
     update();
     draw();
 
-    requestAnimationFrame(
-        gameLoop
-    );
+    requestAnimationFrame(gameLoop);
 }
 
 gameLoop();
 
 </script>
-
 </body>
 </html>
