@@ -16,7 +16,6 @@ html,body{
     background:#111827;
     font-family:Arial,sans-serif;
 
-    /* Prevent blue selection */
     user-select:none;
     -webkit-user-select:none;
     -webkit-touch-callout:none;
@@ -29,7 +28,6 @@ canvas{
 
     touch-action:none;
 
-    /* Prevent highlighting */
     user-select:none;
     -webkit-user-select:none;
 }
@@ -243,12 +241,16 @@ let score=0;
 
 let lives=3;
 
+// HEALTH SYSTEM
+let maxHealth=20;
+let health=20;
+
 let camera=0;
 
 let gameWon=false;
+let gameOver=false;
 
 let message="";
-
 let messageTimer=0;
 
 let player;
@@ -283,7 +285,6 @@ function loadLevel(number){
 
         speed:7,
 
-        // Higher jump
         jumpPower:-15,
 
         ground:false,
@@ -317,7 +318,6 @@ function loadLevel(number){
         vx:e[6],
 
         health:5,
-
         maxHealth:5,
 
         dead:false
@@ -332,7 +332,6 @@ function loadLevel(number){
         y:L.portal[1],
 
         width:50,
-
         height:70
 
     };
@@ -346,6 +345,8 @@ function loadLevel(number){
 
 }
 
+
+// Start game
 loadLevel(0);
 
 
@@ -453,11 +454,10 @@ document.addEventListener("keyup",function(e){
 
 
 // =====================================================
-// MULTI-TOUCH
+// MULTI-TOUCH CONTROLS
 // =====================================================
 
 const fingers=new Map();
-
 
 let touchLeft=false;
 let touchRight=false;
@@ -551,7 +551,10 @@ function updateTouchControls(){
 
             }
 
-            else if(x>W-215 && x<W-110){
+            else if(
+                x>W-215 &&
+                x<W-110
+            ){
 
                 touchAttack=true;
 
@@ -595,41 +598,48 @@ function collision(a,b){
 // DAMAGE
 // =====================================================
 
-function damage(){
+function damage(amount=5){
 
-    lives--;
+    health-=amount;
+
+    message="-"+amount+" HP!";
+
+    messageTimer=30;
 
 
-    if(lives<=0){
+    if(health<=0){
 
-        lives=3;
+        health=0;
 
-        score=0;
+        lives--;
 
-        gameWon=false;
 
-        loadLevel(0);
+        if(lives<=0){
 
-        message="GAME OVER";
+            gameOver=true;
 
-        messageTimer=100;
+            return;
 
-        return;
+        }
+
+
+        // Respawn
+
+        health=maxHealth;
+
+        player.x=player.checkpoint;
+
+        player.y=300;
+
+        player.vx=0;
+
+        player.vy=0;
+
+        message="YOU DIED!";
+
+        messageTimer=70;
 
     }
-
-
-    player.x=player.checkpoint;
-
-    player.y=300;
-
-    player.vx=0;
-
-    player.vy=0;
-
-    message="OUCH!";
-
-    messageTimer=60;
 
 }
 
@@ -643,11 +653,12 @@ let attackCooldown=0;
 
 function attack(){
 
+    // 0.3 seconds at approximately 60 FPS
     if(attackCooldown>0)
         return;
 
 
-    attackCooldown=25;
+    attackCooldown=18;
 
 
     const attackRange=65;
@@ -678,6 +689,7 @@ function attack(){
             dy<70
         ){
 
+            // Common wooden sword
             enemy.health-=3;
 
 
@@ -711,7 +723,7 @@ function attack(){
 
 function update(){
 
-    if(gameWon)
+    if(gameWon || gameOver)
         return;
 
 
@@ -809,7 +821,9 @@ function update(){
     player.ground=false;
 
 
-    // PLATFORMS
+    // =================================================
+    // PLATFORM COLLISION
+    // =================================================
 
     for(const p of L.platforms){
 
@@ -824,6 +838,8 @@ function update(){
 
 
         if(collision(player,platform)){
+
+            // Landing
 
             if(
 
@@ -846,6 +862,8 @@ function update(){
 
             }
 
+
+            // Underside
 
             else if(
 
@@ -871,7 +889,9 @@ function update(){
     }
 
 
+    // =================================================
     // CHECKPOINTS
+    // =================================================
 
     if(player.x>1500)
         player.checkpoint=1450;
@@ -881,7 +901,9 @@ function update(){
         player.checkpoint=2550;
 
 
+    // =================================================
     // COINS
+    // =================================================
 
     for(const coin of coins){
 
@@ -906,7 +928,9 @@ function update(){
     }
 
 
+    // =================================================
     // ENEMIES
+    // =================================================
 
     for(const enemy of enemies){
 
@@ -924,6 +948,8 @@ function update(){
 
 
         if(collision(player,enemy)){
+
+            // Stomp enemy
 
             if(
                 player.vy>0 &&
@@ -953,7 +979,7 @@ function update(){
 
             else{
 
-                damage();
+                damage(5);
 
             }
 
@@ -968,7 +994,9 @@ function update(){
         );
 
 
+    // =================================================
     // PORTAL
+    // =================================================
 
     if(
         collision(
@@ -979,7 +1007,22 @@ function update(){
 
         if(level<levels.length-1){
 
+            // +10 maximum HP
+            maxHealth+=10;
+
+            // Heal 10 HP
+            health=Math.min(
+                maxHealth,
+                health+10
+            );
+
+
             loadLevel(level+1);
+
+
+            message="+10 MAX HP!";
+
+            messageTimer=70;
 
         }
 
@@ -992,16 +1035,20 @@ function update(){
     }
 
 
-    // FALL
+    // =================================================
+    // FALLING
+    // =================================================
 
     if(player.y>H+400){
 
-        damage();
+        damage(5);
 
     }
 
 
+    // =================================================
     // CAMERA
+    // =================================================
 
     camera+=
         (
@@ -1034,6 +1081,8 @@ function draw(){
 
     const L=levels[level];
 
+
+    // SKY
 
     const gradient=
         ctx.createLinearGradient(
@@ -1074,7 +1123,9 @@ function draw(){
     );
 
 
+    // =================================================
     // MOUNTAINS
+    // =================================================
 
     ctx.fillStyle=
         "rgba(255,255,255,.13)";
@@ -1108,7 +1159,9 @@ function draw(){
     }
 
 
+    // =================================================
     // PLATFORMS
+    // =================================================
 
     for(const p of L.platforms){
 
@@ -1138,7 +1191,9 @@ function draw(){
     }
 
 
+    // =================================================
     // COINS
+    // =================================================
 
     for(const coin of coins){
 
@@ -1178,7 +1233,9 @@ function draw(){
     }
 
 
+    // =================================================
     // ENEMIES
+    // =================================================
 
     for(const enemy of enemies){
 
@@ -1239,7 +1296,9 @@ function draw(){
     }
 
 
+    // =================================================
     // PORTAL
+    // =================================================
 
     ctx.fillStyle="white";
 
@@ -1273,7 +1332,9 @@ function draw(){
     ctx.fill();
 
 
+    // =================================================
     // PLAYER
+    // =================================================
 
     ctx.fillStyle="#7c3aed";
 
@@ -1284,6 +1345,8 @@ function draw(){
         player.height
     );
 
+
+    // Eyes
 
     ctx.fillStyle="white";
 
@@ -1303,7 +1366,7 @@ function draw(){
     );
 
 
-    // SWORD
+    // Wooden sword
 
     ctx.fillStyle="#d1d5db";
 
@@ -1319,17 +1382,19 @@ function draw(){
     ctx.restore();
 
 
+    // =================================================
     // HUD
+    // =================================================
 
     ctx.fillStyle=
-        "rgba(0,0,0,.55)";
+        "rgba(0,0,0,.60)";
 
 
     ctx.fillRect(
         10,
         10,
-        Math.min(W-20,390),
-        78
+        Math.min(W-20,410),
+        92
     );
 
 
@@ -1357,14 +1422,46 @@ function draw(){
         "🪙 "+
         score+
         "     ❤️ "+
-        lives+
-        "     🚩 Purple portal = next level",
+        health+
+        "/"+
+        maxHealth+
+        "     💀 "+
+        lives,
         22,
         63
     );
 
 
+    // Health bar
+
+    const healthBarWidth=
+        Math.min(W-44,350);
+
+
+    ctx.fillStyle="#111827";
+
+    ctx.fillRect(
+        22,
+        73,
+        healthBarWidth,
+        12
+    );
+
+
+    ctx.fillStyle="#22c55e";
+
+    ctx.fillRect(
+        22,
+        73,
+        healthBarWidth*
+        (health/maxHealth),
+        12
+    );
+
+
+    // =================================================
     // TOUCH BUTTONS
+    // =================================================
 
     const size=82;
 
@@ -1372,6 +1469,8 @@ function draw(){
 
     const y=H-105;
 
+
+    // LEFT
 
     drawButton(
         15,
@@ -1381,6 +1480,8 @@ function draw(){
     );
 
 
+    // RIGHT
+
     drawButton(
         15+size+gap,
         y,
@@ -1389,6 +1490,8 @@ function draw(){
     );
 
 
+    // ATTACK
+
     drawButton(
         W-15-size*2-gap,
         y,
@@ -1396,6 +1499,8 @@ function draw(){
         touchAttack
     );
 
+
+    // JUMP
 
     drawButton(
         W-15-size,
@@ -1438,7 +1543,9 @@ function draw(){
     );
 
 
+    // =================================================
     // MESSAGE
+    // =================================================
 
     if(messageTimer>0){
 
@@ -1473,12 +1580,14 @@ function draw(){
     }
 
 
-    // WIN SCREEN
+    // =================================================
+    // GAME OVER
+    // =================================================
 
-    if(gameWon){
+    if(gameOver){
 
         ctx.fillStyle=
-            "rgba(0,0,0,.82)";
+            "rgba(0,0,0,.85)";
 
 
         ctx.fillRect(
@@ -1494,14 +1603,13 @@ function draw(){
         ctx.textAlign="center";
 
 
-        ctx.font=
-            "bold 32px Arial";
+        ctx.font="bold 38px Arial";
 
 
         ctx.fillText(
-            "🏆 YOU WON!",
+            "💀 GAME OVER",
             W/2,
-            H/2-70
+            H/2-80
         );
 
 
@@ -1509,30 +1617,30 @@ function draw(){
 
 
         ctx.fillText(
-            "You cleared every level!",
+            "Level reached: "+
+            (level+1),
             W/2,
-            H/2-30
+            H/2-35
         );
 
 
         ctx.fillText(
-            "Total coins: "+score,
+            "Coins: "+
+            score,
             W/2,
             H/2
         );
 
 
-        // PLAY AGAIN BUTTON
+        // Restart button
 
-        const buttonWidth=260;
+        const bw=260;
 
-        const buttonHeight=60;
+        const bh=60;
 
-        const buttonX=
-            W/2-buttonWidth/2;
+        const bx=W/2-bw/2;
 
-        const buttonY=
-            H/2+35;
+        const by=H/2+30;
 
 
         ctx.fillStyle="#7c3aed";
@@ -1540,10 +1648,10 @@ function draw(){
         ctx.beginPath();
 
         ctx.roundRect(
-            buttonX,
-            buttonY,
-            buttonWidth,
-            buttonHeight,
+            bx,
+            by,
+            bw,
+            bh,
             15
         );
 
@@ -1565,7 +1673,106 @@ function draw(){
         ctx.fillText(
             "PLAY AGAIN",
             W/2,
-            buttonY+38
+            by+38
+        );
+
+
+        ctx.textAlign="left";
+
+    }
+
+
+    // =================================================
+    // WIN SCREEN
+    // =================================================
+
+    if(gameWon){
+
+        ctx.fillStyle=
+            "rgba(0,0,0,.85)";
+
+
+        ctx.fillRect(
+            0,
+            0,
+            W,
+            H
+        );
+
+
+        ctx.fillStyle="white";
+
+        ctx.textAlign="center";
+
+
+        ctx.font="bold 36px Arial";
+
+
+        ctx.fillText(
+            "🏆 YOU WON!",
+            W/2,
+            H/2-80
+        );
+
+
+        ctx.font="20px Arial";
+
+
+        ctx.fillText(
+            "You cleared every level!",
+            W/2,
+            H/2-40
+        );
+
+
+        ctx.fillText(
+            "Total coins: "+
+            score,
+            W/2,
+            H/2
+        );
+
+
+        const bw=260;
+
+        const bh=60;
+
+        const bx=W/2-bw/2;
+
+        const by=H/2+35;
+
+
+        ctx.fillStyle="#7c3aed";
+
+        ctx.beginPath();
+
+        ctx.roundRect(
+            bx,
+            by,
+            bw,
+            bh,
+            15
+        );
+
+        ctx.fill();
+
+
+        ctx.strokeStyle="white";
+
+        ctx.lineWidth=3;
+
+        ctx.stroke();
+
+
+        ctx.fillStyle="white";
+
+        ctx.font="bold 22px Arial";
+
+
+        ctx.fillText(
+            "PLAY AGAIN",
+            W/2,
+            by+38
         );
 
 
@@ -1594,7 +1801,7 @@ function drawButton(
 
 
     ctx.strokeStyle=
-        "rgba(255,255,255,.7)";
+        "rgba(255,255,255,.75)";
 
 
     ctx.lineWidth=2;
@@ -1627,11 +1834,19 @@ function restartGame(){
 
     lives=3;
 
+    maxHealth=20;
+
+    health=20;
+
     level=0;
 
     camera=0;
 
     gameWon=false;
+
+    gameOver=false;
+
+    attackCooldown=0;
 
     message="MEADOW";
 
@@ -1650,26 +1865,40 @@ canvas.addEventListener(
     "pointerdown",
     function(e){
 
-        if(!gameWon)
+        if(
+            !gameWon &&
+            !gameOver
+        )
             return;
 
 
-        const buttonWidth=260;
+        const bw=260;
 
-        const buttonHeight=60;
+        const bh=60;
 
-        const buttonX=
-            W/2-buttonWidth/2;
+        const bx=W/2-bw/2;
 
-        const buttonY=
-            H/2+35;
+
+        let by;
+
+
+        if(gameWon){
+
+            by=H/2+35;
+
+        }
+        else{
+
+            by=H/2+30;
+
+        }
 
 
         if(
-            e.clientX>=buttonX &&
-            e.clientX<=buttonX+buttonWidth &&
-            e.clientY>=buttonY &&
-            e.clientY<=buttonY+buttonHeight
+            e.clientX>=bx &&
+            e.clientX<=bx+bw &&
+            e.clientY>=by &&
+            e.clientY<=by+bh
         ){
 
             restartGame();
